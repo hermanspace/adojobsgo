@@ -307,22 +307,26 @@ if (typeof htmx !== 'undefined' && htmx.config) {
         tombol.classList.remove('is-tersalin');
       }, 1800);
     };
+    // Cadangan untuk peramban lama dan WebView yang menolak clipboard API:
+    // pilih teks URL lalu execCommand.
+    var salinLama = function () {
+      var ta = document.createElement('textarea');
+      ta.value = url;
+      ta.setAttribute('readonly', '');
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      var ok = false;
+      try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+      document.body.removeChild(ta);
+      selesai(ok);
+    };
     if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(url).then(function () { selesai(true); }, function () { selesai(false); });
+      navigator.clipboard.writeText(url).then(function () { selesai(true); }, salinLama);
       return;
     }
-    // Peramban lama: pilih teks URL lalu execCommand.
-    var ta = document.createElement('textarea');
-    ta.value = url;
-    ta.setAttribute('readonly', '');
-    ta.style.position = 'fixed';
-    ta.style.opacity = '0';
-    document.body.appendChild(ta);
-    ta.select();
-    var ok = false;
-    try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
-    document.body.removeChild(ta);
-    selesai(ok);
+    salinLama();
   });
 })();
 
