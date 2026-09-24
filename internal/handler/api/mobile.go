@@ -192,6 +192,7 @@ func (h *Handler) ProviderBySlug(c *fiber.Ctx) error {
 	}
 	sembunyikanKontak(h.svc.Settings.Get(ctx).Umum.WhatsappAktif, p)
 	return ok(c, fiber.Map{
+		"bagikan":      view.BagikanPenyedia(h.cfg.App.BaseURL, p),
 		"provider":     p,
 		"area_layanan": p.AreaLayanan(view.Deref(p.Kecamatan)),
 		"services":     listings,

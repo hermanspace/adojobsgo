@@ -1139,6 +1139,14 @@ func TestAPIUntukAndroid(t *testing.T) {
 	if kode != http.StatusOK || data(t, res)["area_layanan"] == nil {
 		t.Fatalf("profil by slug = %d %v", kode, res)
 	}
+	if bg, _ := data(t, res)["bagikan"].(map[string]any); bg == nil || !strings.HasSuffix(fmt.Sprint(bg["url"]), "/penyedia/penyedia-native") {
+		t.Errorf("profil by slug tanpa data bagikan: %v", data(t, res)["bagikan"])
+	}
+	if kode, res := pencari.getJSON(fmt.Sprintf("/api/v1/services/%d", jasaID)); kode != http.StatusOK {
+		t.Fatalf("detail jasa API = %d", kode)
+	} else if bg, _ := data(t, res)["bagikan"].(map[string]any); bg == nil || len(bg["target"].([]any)) != 5 || data(t, res)["title"] == nil {
+		t.Errorf("detail jasa API: bagikan/target/title hilang: %v", res)
+	}
 	if _, ada := data(t, res)["provider"].(map[string]any)["whatsapp_number"]; ada {
 		t.Error("whatsapp_number bocor lewat profil by slug")
 	}
@@ -1281,6 +1289,15 @@ func TestSeedDemo(t *testing.T) {
 	}
 	if _, isi := k.get("/penyedia/rizal-teknik-ac"); !strings.Contains(isi, "Datang tepat waktu") || !strings.Contains(isi, "/uploads/") {
 		t.Error("ulasan atau foto demo tidak tampil di halaman penyedia")
+	} else if !strings.Contains(isi, `data-bagikan`) || !strings.Contains(isi, `property="og:image" content="http://localhost:3000/uploads/`) {
+		t.Error("halaman penyedia: tombol bagikan atau og:image avatar hilang")
+	}
+	// Halaman jasa: tombol bagikan, tautan WhatsApp ter-escape, OG memakai foto jasa.
+	if _, isi := k.get("/jasa/1"); !strings.Contains(isi, `https://wa.me/?text=`) || !strings.Contains(isi, `data-salin-tautan="http://localhost:3000/jasa/1"`) || !strings.Contains(isi, `property="og:image" content="http://localhost:3000/uploads/`) || !strings.Contains(isi, `property="og:url" content="http://localhost:3000/jasa/1"`) {
+		t.Error("halaman jasa: sheet bagikan atau meta Open Graph tidak lengkap")
+	}
+	if _, isi := k.get("/"); !strings.Contains(isi, `property="og:image" content="http://localhost:3000/static/img/og-default.png"`) {
+		t.Error("beranda tanpa og:image bawaan")
 	}
 	harusStatus(t, k.post("/masuk", url.Values{"identifier": {"628117512011"}, "password": {"demo-e2e-123456"}}, false), http.StatusSeeOther, "masuk akun demo")
 	if err := seed.Demo(ctx, a.Repos, a.Services.Upload); err != nil {

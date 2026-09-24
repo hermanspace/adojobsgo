@@ -5,6 +5,7 @@ package web
 
 import (
 	"context"
+	"strings"
 
 	"github.com/a-h/templ"
 	"github.com/gofiber/fiber/v2"
@@ -58,6 +59,7 @@ func (h *Handler) base(c *fiber.Ctx, title, description, activeNav string) view.
 		User:        middleware.CurrentUser(c),
 		ActiveNav:   activeNav,
 		Path:        c.Path(),
+		URL:         strings.TrimRight(h.cfg.App.BaseURL, "/") + c.Path(),
 		Assets:      h.assets,
 		Lokasi: view.LokasiRingkas{
 			Label:     lokasi.Label,

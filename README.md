@@ -685,6 +685,18 @@ service worker) dan item baru tampil ketika peramban benar-benar menawarkan
 pemasangan. Ikon PNG-nya dihasilkan `make ikon` dari `favicon.svg` dan warna
 di `tokens.json`.
 
+## Berbagi jasa & penyedia
+
+Tombol **Bagikan** di halaman jasa dan profil penyedia. Data berbagi (URL
+absolut, judul, teks ajakan, gambar, tautan per platform) disusun sekali di
+`view.BagikanJasa` / `view.BagikanPenyedia` dan dipakai tiga arah: tombol di
+web, meta Open Graph di `<head>` (pratinjau kaya di WhatsApp, Facebook,
+Telegram; gambar bawaan `og-default.png` bila objek tidak berfoto), dan bidang
+`bagikan` di API. Di ponsel tombol memanggil Web Share API sehingga muncul
+lembar bagikan sistem; di desktop terbuka sheet dengan WhatsApp, Facebook,
+Telegram, X, dan Salin tautan. Semua tautan di sheet adalah tautan biasa, jadi
+tetap berfungsi tanpa JavaScript.
+
 ## Halaman Tentang & Panduan
 
 `/tentang` (alias `/bantuan` → `/tentang#cara-kerja`) dirender dari

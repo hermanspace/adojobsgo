@@ -118,7 +118,7 @@ func (h *Handler) Penyedia(c *fiber.Ctx) error {
 	}
 
 	return h.render(c, fiber.StatusOK, pages.Penyedia(view.PenyediaData{
-		Base:       h.base(c, provider.FullName, keterangan, "cari").DenganPeta(),
+		Base:       h.base(c, provider.FullName, keterangan, "cari").DenganPeta().DenganBagikan(view.BagikanPenyedia(h.cfg.App.BaseURL, provider)),
 		Provider:   provider,
 		Listings:   listings,
 		Portofolio: portofolio,

@@ -1,0 +1,61 @@
+package components
+
+import "github.com/hermansyah/adojobsid/internal/view"
+
+// TombolBagikan: tombol "Bagikan" + sheet tujuannya.
+//
+// Di ponsel, JavaScript (lihat "bagikan" di app.js) memakai Web Share API
+// sehingga muncul lembar bagikan bawaan sistem — WhatsApp, Telegram, dan
+// aplikasi apa pun yang terpasang. Di peramban tanpa itu, sheet ini yang
+// terbuka: pola dan gaya yang sama dengan menu utama. Tanpa JavaScript pun
+// tautan di dalamnya tetap berfungsi karena semuanya tautan biasa.
+// Data (URL, teks, target) datang dari view.Bagikan — sumber yang sama
+// dengan API Android.
+templ TombolBagikan(b view.Bagikan, id string, kelas string) {
+	<button
+		type="button"
+		class={ "btn btn-secondary", kelas }
+		data-bagikan
+		data-bagikan-sheet={ "#" + id }
+		data-judul={ b.Judul }
+		data-teks={ b.Teks }
+		data-url={ b.URL }
+		aria-haspopup="dialog"
+	>
+		@Icon("bagikan", "h-4 w-4")
+		Bagikan
+	</button>
+	<dialog id={ id } class="sheet sheet-tengah" aria-labelledby={ id + "-judul" }>
+		<div class="flex items-center gap-3 px-4 pt-4 pb-3" style="border-bottom: 1px solid var(--border)">
+			<div class="min-w-0 flex-1">
+				<p id={ id + "-judul" } class="text-sm font-semibold">Bagikan</p>
+				<p class="clamp-1 text-xs" style="color: var(--text-muted)">{ b.Judul }</p>
+			</div>
+			<button type="button" class="btn btn-ghost !min-h-0 h-9 w-9 !px-0" data-sheet-tutup aria-label="Tutup">
+				@Icon("tutup", "h-5 w-5")
+			</button>
+		</div>
+		<div class="grid grid-cols-4 gap-2 p-4">
+			for _, t := range b.Target {
+				if t.Kunci == "salin" {
+					<button type="button" class="bagikan-target" data-salin-tautan={ b.URL }>
+						<span class="bagikan-ikon">
+							@Icon("salin", "h-5 w-5")
+						</span>
+						<span data-salin-label>{ t.Label }</span>
+					</button>
+				} else {
+					<a href={ templ.SafeURL(t.URL) } class="bagikan-target" target="_blank" rel="noopener">
+						<span class="bagikan-ikon">
+							@IkonMerek(t.Kunci, "h-5 w-5")
+						</span>
+						<span>{ t.Label }</span>
+					</a>
+				}
+			}
+		</div>
+		<div class="mx-4 mb-4 flex items-center gap-2 rounded-md px-3 py-2 text-xs" style="background-color: var(--surface); color: var(--text-muted)">
+			<span class="clamp-1 flex-1 font-mono">{ b.URL }</span>
+		</div>
+	</dialog>
+}

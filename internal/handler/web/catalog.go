@@ -197,6 +197,7 @@ func (h *Handler) DetailJasa(c *fiber.Ctx) error {
 		jarak = &km
 	}
 
+	bagikan := view.BagikanJasa(h.cfg.App.BaseURL, detail)
 	data := view.ServiceDetailData{
 		Base: h.base(c, detail.Title,
 			view.Potong(detail.Description, 155),
@@ -207,6 +208,10 @@ func (h *Handler) DetailJasa(c *fiber.Ctx) error {
 		Serupa:  serupa,
 		JarakKm: jarak,
 		Form:    view.NewForm(),
+	}
+	// Hanya jasa yang tayang publik yang layak dibagikan.
+	if detail.Status == model.ServiceActive {
+		data.Base.Bagikan = &bagikan
 	}
 	return h.render(c, fiber.StatusOK, pages.ServiceDetail(data))
 }

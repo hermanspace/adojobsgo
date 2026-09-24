@@ -41,6 +41,11 @@ templ ServiceDetail(d view.ServiceDetailData) {
 							</span>
 						</p>
 						@StatusListing(d)
+						if d.Base.Bagikan != nil {
+							<div class="mt-4">
+								@components.TombolBagikan(*d.Base.Bagikan, "bagikan-jasa", "btn-sm")
+							</div>
+						}
 					</div>
 					<section class="mt-6" aria-labelledby="judul-deskripsi">
 						<h2 id="judul-deskripsi" class="mb-2 text-sm font-semibold uppercase tracking-widest" style="color: var(--text-muted)">

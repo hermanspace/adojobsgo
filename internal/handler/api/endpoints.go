@@ -10,6 +10,7 @@ import (
 	"github.com/hermansyah/adojobsid/internal/model"
 	"github.com/hermansyah/adojobsid/internal/service"
 	"github.com/hermansyah/adojobsid/internal/session"
+	"github.com/hermansyah/adojobsid/internal/view"
 )
 
 // ---------- autentikasi ----------
@@ -158,7 +159,12 @@ func (h *Handler) ServiceDetail(c *fiber.Ctx) error {
 		return fail(c, err)
 	}
 	sembunyikanKontak(h.svc.Settings.Get(c.Context()).Umum.WhatsappAktif, &detail.Provider)
-	return ok(c, detail)
+	// Bidang detail tetap di tingkat atas (embedding), ditambah data berbagi
+	// yang persis sama dengan yang dipakai web.
+	return ok(c, struct {
+		*model.ServiceDetail
+		Bagikan view.Bagikan `json:"bagikan"`
+	}{detail, view.BagikanJasa(h.cfg.App.BaseURL, detail)})
 }
 
 func (h *Handler) KecamatanOptions(c *fiber.Ctx) error {

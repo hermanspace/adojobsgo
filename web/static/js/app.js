@@ -198,13 +198,15 @@ if (typeof htmx !== 'undefined' && htmx.config) {
       s.showModal();
       return;
     }
-    if (!s || !s.open) return;
-    if (event.target.closest('[data-menu-tutup]')) {
-      s.close();
+    // Penutupan berlaku untuk semua sheet (menu utama, bagikan, …):
+    // tombol tutup, atau klik tepat pada elemen dialog = klik pada latar.
+    var tutup = event.target.closest('[data-menu-tutup], [data-sheet-tutup]');
+    if (tutup) {
+      var d = tutup.closest('dialog');
+      if (d && d.open) d.close();
       return;
     }
-    // Klik tepat pada elemen dialog (bukan isinya) berarti klik pada latar.
-    if (event.target === s) s.close();
+    if (event.target.matches('dialog.sheet[open]')) event.target.close();
     // Ganti tema dari dalam sheet: sheet tetap terbuka, tombolnya sudah
     // ditangani listener tema global.
   });
@@ -258,6 +260,69 @@ if (typeof htmx !== 'undefined' && htmx.config) {
       var s = sheet();
       if (s && s.open) s.close();
     });
+  });
+})();
+
+/*
+ * Bagikan jasa / penyedia.
+ *
+ * Di peramban ponsel dipakai Web Share API (navigator.share): muncul lembar
+ * bagikan bawaan sistem dengan semua aplikasi yang terpasang. Bila tidak
+ * tersedia (desktop), sheet berisi tautan per platform yang dibuka. Tombol
+ * "Salin tautan" memakai clipboard API dengan umpan balik singkat.
+ */
+(function () {
+  'use strict';
+
+  document.addEventListener('click', function (event) {
+    var tombol = event.target.closest('[data-bagikan]');
+    if (!tombol) return;
+    event.preventDefault();
+    var data = { title: tombol.dataset.judul, text: tombol.dataset.teks, url: tombol.dataset.url };
+    var sheet = document.querySelector(tombol.dataset.bagikanSheet || '');
+
+    if (navigator.share && navigator.canShare && navigator.canShare(data)) {
+      navigator.share(data).catch(function (err) {
+        // Pengguna membatalkan: bukan kesalahan. Kegagalan lain: buka sheet.
+        if (err && err.name !== 'AbortError' && sheet && sheet.showModal) sheet.showModal();
+      });
+      return;
+    }
+    if (sheet && typeof sheet.showModal === 'function') sheet.showModal();
+  });
+
+  document.addEventListener('click', function (event) {
+    var tombol = event.target.closest('[data-salin-tautan]');
+    if (!tombol) return;
+    event.preventDefault();
+    var url = tombol.dataset.salinTautan;
+    var label = tombol.querySelector('[data-salin-label]');
+    var selesai = function (berhasil) {
+      if (!label) return;
+      var asli = label.textContent;
+      label.textContent = berhasil ? 'Tersalin' : 'Gagal menyalin';
+      tombol.classList.toggle('is-tersalin', berhasil);
+      setTimeout(function () {
+        label.textContent = asli;
+        tombol.classList.remove('is-tersalin');
+      }, 1800);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(url).then(function () { selesai(true); }, function () { selesai(false); });
+      return;
+    }
+    // Peramban lama: pilih teks URL lalu execCommand.
+    var ta = document.createElement('textarea');
+    ta.value = url;
+    ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    var ok = false;
+    try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+    document.body.removeChild(ta);
+    selesai(ok);
   });
 })();
 

@@ -14,6 +14,7 @@ repo — bila dokumen dan sumber berbeda, sumbernya yang benar.
 | Ikon aplikasi | `web/static/img/favicon.svg` + warna merek | favicon, manifest PWA | `ikon-512.png`, `ikon-maskable-512.png` (hasil `make ikon`) |
 | Isi menu utama | `internal/view/menu.go` (`MenuUtama`) | sheet tombol melayang | `GET /api/v1/config` → `menu` |
 | Isi Tentang & Panduan | `internal/view/panduan.go` (`Panduan`) | `/tentang` | `GET /api/v1/help` |
+| Teks & tautan berbagi | `internal/view/bagikan.go` (`BagikanJasa`, `BagikanPenyedia`) | tombol Bagikan + meta Open Graph | `bagikan` di detail jasa & profil penyedia |
 | Judul/isi notifikasi | `internal/view` (`IsiNotifikasi`) | halaman notifikasi | payload push (`data.type`, `data.tautan`) |
 | Kontrak API | `docs/openapi.yaml` | — | seluruh layar |
 
@@ -72,6 +73,7 @@ Aturan yang harus dipertahankan di Android, karena itu identitas visualnya:
 | Langkah bernomor | `.langkah`, `.langkah-nomor` | `ListTile` dengan lingkaran nomor 32 px | Nomor warna merek di `primary-soft` |
 | Tile statistik | `.stat-tile`, `.stat-angka` | `Container` + teks gradasi | Angka dari `/help.ringkasan` |
 | Flash / toast | `FlashMessage` | `SnackBar` | Jenis sukses/info/peringatan/galat |
+| Tombol bagikan | `TombolBagikan` (`data-bagikan`, sheet `.sheet-tengah`) | `Share.share()` dari `share_plus` dengan `bagikan.judul/teks/url` | Web: Web Share API di ponsel, sheet target di desktop; data dari `bagikan` di `/services/{id}` & `/providers/slug/{slug}` |
 
 ## 4. Navigasi & tautan
 

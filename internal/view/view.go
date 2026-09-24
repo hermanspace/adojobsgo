@@ -35,7 +35,13 @@ type Base struct {
 	ActiveNav   string // beranda | cari | jual | pesanan | akun
 	Flash       *Flash
 	Path        string
-	Assets      *Assets
+	// URL absolut halaman ini, untuk og:url dan tautan berbagi.
+	URL    string
+	Assets *Assets
+	// Bagikan, bila diisi handler, mengubah meta Open Graph halaman menjadi
+	// milik objek yang dibagikan (jasa/penyedia) dan menyalakan tombol
+	// Bagikan. Nil berarti meta bawaan situs.
+	Bagikan *Bagikan
 	// Lokasi acuan pencari jasa pada permintaan ini.
 	Lokasi LokasiRingkas
 	// BelumDibaca adalah jumlah pesan chat yang belum dibaca pengguna.
@@ -60,6 +66,9 @@ type Base struct {
 // karena layout dirender lebih dulu daripada isi halaman dan tidak bisa
 // tahu sendiri apakah di bawahnya nanti ada peta.
 func (b Base) DenganPeta() Base { b.PakaiPeta = true; return b }
+
+// DenganBagikan memasang data berbagi (meta OG + tombol Bagikan).
+func (b Base) DenganBagikan(bg Bagikan) Base { b.Bagikan = &bg; return b }
 
 // Iklan mencari slot yang siap tayang pada penempatan tertentu.
 // Mengembalikan nil bila slotnya kosong, dinonaktifkan, atau tidak dikenal —
@@ -288,4 +297,31 @@ func Potong(s string, max int) string {
 		cut = cut[:idx]
 	}
 	return cut + "…"
+}
+
+// OGJudul, OGDeskripsi, OGGambar mengembalikan meta Open Graph: milik objek
+// yang dibagikan bila ada, selain itu identitas situs dengan gambar bawaan.
+func (b Base) OGJudul() string {
+	if b.Bagikan != nil {
+		return b.Bagikan.Judul
+	}
+	if b.Title != "" {
+		return b.Title + " · " + b.Situs.Nama
+	}
+	return b.Situs.Nama
+}
+
+func (b Base) OGDeskripsi() string {
+	if b.Bagikan != nil {
+		return b.Bagikan.Teks
+	}
+	return b.Description
+}
+
+// OGGambar memakai gambar objek bila ada; bila tidak, kartu bawaan situs.
+func (b Base) OGGambar() string {
+	if b.Bagikan != nil && b.Bagikan.GambarURL != "" {
+		return b.Bagikan.GambarURL
+	}
+	return absolut(b.URL[:len(b.URL)-len(b.Path)], "/static/img/og-default.png")
 }

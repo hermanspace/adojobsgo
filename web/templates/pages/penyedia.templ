@@ -62,8 +62,13 @@ templ KepalaPenyedia(d view.PenyediaData) {
 			if d.Provider.Bio != nil && *d.Provider.Bio != "" {
 				<p class="mt-4 max-w-prose whitespace-pre-line text-base leading-relaxed">{ *d.Provider.Bio }</p>
 			}
+			<div class="mt-4 flex flex-wrap gap-2">
+				if d.Base.Bagikan != nil {
+					@components.TombolBagikan(*d.Base.Bagikan, "bagikan-penyedia", "btn-sm")
+				}
+			</div>
 			if d.IsOwner {
-				<div class="mt-4 flex flex-wrap gap-2">
+				<div class="mt-2 flex flex-wrap gap-2">
 					<a href="/provider/profil" class="btn btn-secondary btn-sm">
 						@components.Icon("ubah", "h-4 w-4")
 						Ubah profil

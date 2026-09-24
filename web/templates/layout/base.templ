@@ -16,6 +16,16 @@ templ Base(b view.Base) {
 			<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
 			<title>{ pageTitle(b.Title, b.Situs.Nama) }</title>
 			<meta name="description" content={ b.Description }/>
+			<!-- Open Graph: pratinjau kaya saat tautan dibagikan ke WhatsApp,
+			     Facebook, Telegram. Halaman jasa/penyedia memakai gambarnya sendiri. -->
+			<meta property="og:type" content="website"/>
+			<meta property="og:site_name" content={ b.Situs.Nama }/>
+			<meta property="og:title" content={ b.OGJudul() }/>
+			<meta property="og:description" content={ b.OGDeskripsi() }/>
+			<meta property="og:url" content={ b.URL }/>
+			<meta property="og:image" content={ b.OGGambar() }/>
+			<meta property="og:locale" content="id_ID"/>
+			<meta name="twitter:card" content="summary_large_image"/>
 			<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)"/>
 			<meta name="theme-color" content="#0b0b12" media="(prefers-color-scheme: dark)"/>
 			<link rel="icon" href="/static/img/favicon.svg" type="image/svg+xml"/>

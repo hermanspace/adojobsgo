@@ -123,6 +123,19 @@ components:
         status: { type: string, enum: [pending, accepted, rejected, completed, cancelled] }
         scheduled_date: { type: string, nullable: true }
         notes: { type: string, nullable: true }
+    Bagikan:
+      type: object
+      description: |
+        Data berbagi. Aplikasi memakai `judul`, `teks`, `url` dengan share sheet sistem (share_plus);
+        `target` berisi tautan siap pakai per platform bila ingin tombol khusus. Kunci `salin` tanpa URL.
+      properties:
+        url: { type: string, description: absolut }
+        judul: { type: string }
+        teks: { type: string }
+        gambar_url: { type: string, description: absolut; juga og:image halaman web }
+        target:
+          type: array
+          items: { type: object, properties: { kunci: { type: string, enum: [whatsapp, facebook, telegram, x, salin] }, label: { type: string }, url: { type: string } } }
     MenuItem:
       type: object
       description: |
@@ -251,7 +264,7 @@ paths:
         - { name: per_page, in: query, schema: { type: integer } }
       responses: { "200": { description: "{items: ServiceCard[], total, page, per_page, total_pages}" } }
   /services/{id}:
-    get: { security: [], parameters: [ { $ref: '#/components/parameters/id' } ], responses: { "200": { description: Detail jasa + images + category + provider } } }
+    get: { security: [], parameters: [ { $ref: '#/components/parameters/id' } ], responses: { "200": { description: "Detail jasa + images + category + provider + bagikan (Bagikan)" } } }
   /services/{id}/conversations:
     post: { parameters: [ { $ref: '#/components/parameters/id' } ], summary: Buka atau temukan ruang obrolan untuk jasa ini, responses: { "201": { description: Conversation } } }
   /services/{id}/orders:
@@ -272,7 +285,7 @@ paths:
   /providers/featured:
     get: { security: [], parameters: [ { $ref: '#/components/parameters/kecamatan' }, { $ref: '#/components/parameters/lat' }, { $ref: '#/components/parameters/lng' }, { name: n, in: query, schema: { type: integer, default: 4 } } ], responses: { "200": { description: Provider[] digilir, sekecamatan penonton didahulukan } } }
   /providers/slug/{slug}:
-    get: { security: [], parameters: [ { name: slug, in: path, required: true, schema: { type: string } } ], responses: { "200": { description: "{provider, area_layanan[], services[], portfolio[], reviews{rata,total,sebaran,terbaru}}" } } }
+    get: { security: [], parameters: [ { name: slug, in: path, required: true, schema: { type: string } } ], responses: { "200": { description: "{bagikan: Bagikan, provider, area_layanan[], services[], portfolio[], reviews{rata,total,sebaran,terbaru}}" } } }
   /providers/{id}:
     get: { security: [], parameters: [ { $ref: '#/components/parameters/id' } ], responses: { "200": { description: "{provider, services}" } } }
   /providers/me: { patch: { summary: Ubah profil penyedia, responses: { "200": { description: Provider } } } }

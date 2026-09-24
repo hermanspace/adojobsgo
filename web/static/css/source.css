@@ -441,6 +441,15 @@
       border-radius: 12px;
       border: 1px solid var(--border);
     }
+
+    /* Sheet yang dipicu dari tengah halaman (bagikan, konfirmasi) tampil di
+       tengah layar, bukan di pojok tombol melayang. */
+    .sheet.sheet-tengah {
+      inset: 0;
+      margin: auto;
+      height: fit-content;
+      width: min(420px, calc(100vw - 48px));
+    }
   }
 
   .sheet-item {
@@ -566,6 +575,36 @@
 
   .kartu-tautan:hover .kartu-tautan-judul {
     color: var(--primary-solid);
+  }
+
+  /* ---------- sheet bagikan ---------- */
+  .bagikan-target {
+    @apply flex flex-col items-center gap-2 rounded-md px-1 py-3 text-center text-xs font-semibold;
+    min-height: var(--ukuran-sentuh-min);
+    color: var(--text);
+    transition: background-color 120ms;
+  }
+
+  .bagikan-target:hover,
+  .bagikan-target:focus-visible {
+    background-color: var(--surface);
+  }
+
+  .bagikan-ikon {
+    @apply inline-flex h-11 w-11 items-center justify-center rounded-full;
+    color: var(--primary-solid);
+    background-color: var(--primary-soft);
+    transition: color 120ms, background-color 120ms;
+  }
+
+  .bagikan-target:hover .bagikan-ikon {
+    color: var(--primary-contrast);
+    background-image: linear-gradient(103deg, var(--primary-from), var(--primary-to));
+  }
+
+  .bagikan-target.is-tersalin .bagikan-ikon {
+    color: var(--positive);
+    background-color: var(--surface);
   }
 
   /* ---------- kartu listing jasa ---------- */
