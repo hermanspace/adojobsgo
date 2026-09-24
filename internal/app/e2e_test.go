@@ -1272,6 +1272,12 @@ func TestSeedDemo(t *testing.T) {
 			t.Errorf("%s = %s, minimal %d", tabel, n, minimal)
 		}
 	}
+	if n := a.tanya(t, `SELECT count(*)::text FROM services WHERE status='active' AND total_kunjungan = 0`); n != "0" {
+		t.Errorf("%s jasa aktif tanpa riwayat kunjungan demo", n)
+	}
+	if n := a.tanya(t, `SELECT count(DISTINCT tanggal)::text FROM kunjungan_jasa`); n != "29" {
+		t.Errorf("riwayat kunjungan demo mencakup %s hari, harusnya 29", n)
+	}
 	if n := a.tanya(t, `SELECT count(*)::text FROM promosi WHERE status='aktif'`); n != "5" {
 		t.Errorf("promosi aktif = %s, harusnya 5 (2 iklan, 1 sorotan, 2 penyedia pilihan)", n)
 	}

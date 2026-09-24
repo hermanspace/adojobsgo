@@ -29,8 +29,8 @@ import (
 // pencari pertama sudah ada, seluruh proses dilewati.
 func Demo(ctx context.Context, repos *repository.Repositories, upload *service.UploadService) error {
 	if _, err := repos.User.GetByPhone(ctx, pencariDemo[0].Phone); err == nil {
-		slog.Info("konten demo sudah ada; dilewati")
-		return nil
+		slog.Info("akun & konten demo sudah ada; hanya melengkapi riwayat kunjungan bila kosong")
+		return buatKunjungan(ctx, repos)
 	} else if !errors.Is(err, repository.ErrNotFound) {
 		return err
 	}
@@ -67,6 +67,9 @@ func Demo(ctx context.Context, repos *repository.Repositories, upload *service.U
 	}
 	if err := buatPromosi(ctx, repos, upload, penyedia); err != nil {
 		return fmt.Errorf("promosi: %w", err)
+	}
+	if err := buatKunjungan(ctx, repos); err != nil {
+		return fmt.Errorf("kunjungan: %w", err)
 	}
 	slog.Info("konten demo selesai", "penyedia", len(penyedia), "pencari", len(pencari), "katasandi_semua_akun_demo", sandi)
 	return nil
@@ -348,5 +351,47 @@ func buatPromosi(ctx context.Context, repos *repository.Repositories, upload *se
 			return err
 		}
 	}
+	return nil
+}
+
+// buatKunjungan menanam riwayat kunjungan 30 hari untuk setiap jasa aktif
+// supaya angka "dilihat" dan panel statistik pemilik langsung berisi. Pola
+// dibuat wajar: jasa dengan urutan lebih awal lebih ramai, akhir pekan
+// sedikit lebih tinggi, dan ada variasi harian deterministik (tanpa acak
+// supaya hasilnya sama di setiap lingkungan). Dilewati bila tabel sudah
+// berisi — kunjungan sungguhan tidak boleh tercampur data demo baru.
+func buatKunjungan(ctx context.Context, repos *repository.Repositories) error {
+	jasa, err := repos.Service.Search(ctx, repository.ServiceFilter{Limit: 100})
+	if err != nil {
+		return err
+	}
+	ada := false
+	for _, j := range jasa {
+		if j.TotalKunjungan > 0 {
+			ada = true
+			break
+		}
+	}
+	if ada || len(jasa) == 0 {
+		return nil
+	}
+	hariIni := time.Now().Truncate(24 * time.Hour)
+	total := 0
+	for i, j := range jasa {
+		dasar := 3 + (len(jasa)-i)%7 // 3–9 kunjungan per hari
+		for d := 29; d >= 1; d-- {   // hari ini dibiarkan diisi kunjungan sungguhan
+			tgl := hariIni.AddDate(0, 0, -d)
+			n := dasar + int((j.ID*7+int64(d)*3)%5)
+			if wd := tgl.Weekday(); wd == time.Saturday || wd == time.Sunday {
+				n += 3
+			}
+			unik := n - n/4
+			if err := repos.Kunjungan.Tambah(ctx, j.ID, tgl, int64(n), int64(unik)); err != nil {
+				return err
+			}
+			total += n
+		}
+	}
+	slog.Info("riwayat kunjungan demo tersimpan", "jasa", len(jasa), "kunjungan", total)
 	return nil
 }
