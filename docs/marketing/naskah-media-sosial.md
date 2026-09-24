@@ -175,3 +175,45 @@ unggahan menggantikan wordmark dan tidak beradaptasi ke mode gelap.
 Rasio lockup 124:34 (≈ 3,6:1); slot header 28 px tinggi → lebar 102 px.
 Ruang aman di sekeliling minimal setinggi huruf "o". Jangan mengubah warna
 gradasi, memiringkan, atau menambahkan bayangan.
+
+## Postingan beta testing — `post-beta-feed.png` (1080×1080) & `post-beta-story.png` (1080×1920)
+
+Dipakai sebagai postingan pertama, menggantikan atau mendahului postingan
+"Peluncuran". Semua keuntungan yang disebut memang ada di sistem: pendaftaran
+gratis tanpa komisi, sakelar "uji coba gratis" promosi menyala, verifikasi
+dilakukan admin, masukan masuk daftar pengembangan.
+
+**Caption Facebook & Instagram:**
+
+> **Adojobs resmi memasuki tahap beta testing di Kabupaten Bengkalis.** 🎉
+>
+> Adojobs adalah tempat warga Bengkalis mencari tukang dan jasa yang benar-benar ada di dekat rumah: servis AC, tukang bangunan, katering, dokumentasi acara, jasa bersih rumah, servis motor, dan lainnya. Lihat jarak, harga, dan ulasannya dulu, lalu pesan langsung di aplikasi tanpa nomor yang tersebar ke mana-mana.
+>
+> Selama masa beta, pengguna awal mendapat keuntungan yang tidak akan diulang:
+>
+> ✅ **Gratis untuk semua.** Daftar, pasang jasa, obrolan, dan pesanan tanpa biaya, tanpa komisi.
+> ✅ **Semua paket promosi Rp 0.** Iklan di beranda, sorotan jasa, dan penyedia pilihan: ajukan dari akun Anda, gratis selama beta.
+> ✅ **Prioritas lencana terverifikasi.** Penyedia yang bergabung sekarang diperiksa lebih dulu, tampil lebih dipercaya calon pelanggan.
+> ✅ **Suara Anda menentukan fitur berikutnya.** Masukan penguji awal langsung masuk daftar pengembangan.
+>
+> Yang butuh jasa: cari dan pesan sekarang. Yang punya keahlian: daftar 1 menit, cukup nomor HP.
+>
+> 👉 adojobs.id
+>
+> Karena masih beta, mungkin ada yang belum sempurna. Kalau menemukan kendala, kirim pesan ke halaman ini; setiap laporan dibalas.
+>
+> #Adojobs #Bengkalis #BetaTesting #JasaBengkalis #TukangBengkalis #UMKMBengkalis #ServisACBengkalis #Bantan #BukitBatu
+
+**Caption Story (teks di atas gambar, singkat):**
+
+> Adojobs beta testing sudah dibuka 🎉
+> Daftar sekarang: promosi gratis + prioritas verifikasi untuk pengguna awal.
+> adojobs.id
+
+**Siaran WhatsApp (pesan pribadi/grup, tanpa tagar):**
+
+> Halo! Saya sedang meluncurkan *Adojobs*, aplikasi cari tukang & jasa di Kabupaten Bengkalis, dan sekarang masuk tahap beta testing.
+>
+> Kalau Anda punya keahlian (servis AC, tukang, katering, foto/video, bersih rumah, servis motor, dll.), daftar sekarang gratis di adojobs.id — selama beta semua promosi juga gratis dan penyedia awal diprioritaskan untuk lencana terverifikasi.
+>
+> Kalau sedang butuh jasa, coba cari di adojobs.id: kelihatan jarak, harga, dan ulasannya. Masukan apa pun sangat membantu. Terima kasih 🙏
