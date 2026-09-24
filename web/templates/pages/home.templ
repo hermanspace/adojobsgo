@@ -122,31 +122,33 @@ templ Home(d view.HomeData) {
 // KartuPenyedia menampilkan satu penyedia pilihan.
 // Statusnya ditandai lewat garis aksen tipis di tepi atas, bukan pill berwarna.
 templ KartuPenyedia(p model.ProviderDetail) {
-	<article class={ "surface-panel relative overflow-hidden p-4",
+	<article class={ "surface-panel kartu-tautan relative overflow-hidden",
 		templ.KV("is-sorot-penyedia", p.IsFeatured()) }>
 		if p.IsFeatured() {
 			<span class="pita-sorot-penyedia"></span>
 			<span class="sr-only">Penyedia pilihan pengelola.</span>
 		}
-		<div class="flex items-start gap-3">
-			@components.Avatar(view.Deref(p.AvatarURL), p.FullName, "h-11 w-11 text-sm")
-			<div class="min-w-0 flex-1">
-				<h3 class="flex items-center gap-1.5 text-sm font-bold">
-					<span class="clamp-1">{ p.FullName }</span>
-					@components.BadgeTerverifikasi(p.IsVerified, false)
-				</h3>
-				<p class="mt-0.5 flex items-center gap-1 text-xs" style="color: var(--text-muted)">
-					@components.Icon("lokasi", "h-3.5 w-3.5 shrink-0")
-					<span class="clamp-1">{ view.Lokasi(p.Kecamatan, p.City) }</span>
-				</p>
-				<div class="mt-1">
-					@components.Rating(p.AvgRating, p.TotalReviews, "text-xs")
+		<a href={ templ.SafeURL(view.URLPenyedia(p.Slug)) } class="block p-4" aria-label={ "Lihat profil " + p.FullName }>
+			<div class="flex items-start gap-3">
+				@components.Avatar(view.Deref(p.AvatarURL), p.FullName, "h-11 w-11 text-sm")
+				<div class="min-w-0 flex-1">
+					<h3 class="flex items-center gap-1.5 text-sm font-bold">
+						<span class="clamp-1 kartu-tautan-judul">{ p.FullName }</span>
+						@components.BadgeTerverifikasi(p.IsVerified, false)
+					</h3>
+					<p class="mt-0.5 flex items-center gap-1 text-xs" style="color: var(--text-muted)">
+						@components.Icon("lokasi", "h-3.5 w-3.5 shrink-0")
+						<span class="clamp-1">{ view.Lokasi(p.Kecamatan, p.City) }</span>
+					</p>
+					<div class="mt-1">
+						@components.Rating(p.AvgRating, p.TotalReviews, "text-xs")
+					</div>
 				</div>
 			</div>
-		</div>
-		if p.Bio != nil && *p.Bio != "" {
-			<p class="clamp-3 mt-3 text-xs" style="color: var(--text-muted)">{ *p.Bio }</p>
-		}
+			if p.Bio != nil && *p.Bio != "" {
+				<p class="clamp-3 mt-3 text-xs" style="color: var(--text-muted)">{ *p.Bio }</p>
+			}
+		</a>
 	</article>
 }
 

@@ -552,6 +552,22 @@
     color: var(--text-muted);
   }
 
+  /* Kartu yang seluruh permukaannya adalah tautan: garis menguat dan judul
+     berubah warna saat disorot, sama seperti kartu jasa. */
+  .kartu-tautan {
+    transition: border-color 180ms cubic-bezier(0.22, 1, 0.36, 1),
+      transform 180ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .kartu-tautan:hover {
+    border-color: var(--border-strong);
+    transform: translateY(-2px);
+  }
+
+  .kartu-tautan:hover .kartu-tautan-judul {
+    color: var(--primary-solid);
+  }
+
   /* ---------- kartu listing jasa ---------- */
 
   .listing-card {

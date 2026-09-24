@@ -1276,6 +1276,8 @@ func TestSeedDemo(t *testing.T) {
 	k := a.klienBaru(t)
 	if _, isi := k.get("/"); !strings.Contains(isi, "Servis AC panggilan, garansi 30 hari") {
 		t.Error("iklan demo tidak tayang di beranda")
+	} else if strings.Count(isi, `href="/penyedia/`) < 2 {
+		t.Error("kartu penyedia pilihan di beranda tidak bertautan ke halaman penyedia")
 	}
 	if _, isi := k.get("/penyedia/rizal-teknik-ac"); !strings.Contains(isi, "Datang tepat waktu") || !strings.Contains(isi, "/uploads/") {
 		t.Error("ulasan atau foto demo tidak tampil di halaman penyedia")
