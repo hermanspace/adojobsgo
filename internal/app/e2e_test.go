@@ -1372,8 +1372,6 @@ func TestStatistikKunjungan(t *testing.T) {
 	if kode, res := a.klienNative(t).getJSON("/api/v1/services/1/stats"); kode != http.StatusOK || angka(data(t, res)["hari_7"]) != 3 || angka(data(t, res)["unik_30"]) != 2 || len(data(t, res)["harian"].([]any)) != 30 {
 		t.Errorf("API statistik publik = %d %v", kode, res)
 	}
-	// statistik di-cache 60 detik: kunjungan baru belum tampak sebelum cache dibersihkan
-	a.Rdb.FlushDB(ctx)
 	// setelah pengunjung lain datang lagi, kunjungan tercatat menambah (bukan menimpa)
 	pengunjungA("/jasa/1")
 	a.Services.Kunjungan.Salin(ctx)

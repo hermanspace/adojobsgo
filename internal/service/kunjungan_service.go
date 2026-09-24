@@ -84,6 +84,8 @@ func (s *KunjunganService) Salin(ctx context.Context) int {
 		unik := s.cache.HitungUnik(ctx, "kunjungan-unik:"+bagian[0]+":"+bagian[1])
 		if err := s.repos.Kunjungan.Tambah(ctx, id, tanggal, jumlah, unik); err == nil {
 			n++
+			// Ringkasan yang di-cache sudah basi begitu angkanya berubah.
+			s.cache.Forget(ctx, "statistik:jasa:"+bagian[0])
 		}
 	}
 	return n
