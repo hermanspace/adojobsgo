@@ -55,12 +55,21 @@ templ ServiceDetail(d view.ServiceDetailData) {
 							{ d.Service.Description }
 						</div>
 					</section>
-					<p class="mt-6 text-xs" style="color: var(--text-subtle)">
-						Dipasang { view.WaktuRelatif(d.Service.CreatedAt) }
+					<p class="mt-6 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs" style="color: var(--text-subtle)">
+						<span>Dipasang { view.WaktuRelatif(d.Service.CreatedAt) }</span>
+						if d.Service.TotalKunjungan > 0 {
+							<span class="inline-flex items-center gap-1 tabular-nums">
+								@components.Icon("mata", "h-3.5 w-3.5")
+								Dilihat { view.Ringkas(d.Service.TotalKunjungan) } kali
+							</span>
+						}
 					</p>
 				</div>
 				<aside class="lg:sticky lg:top-24 lg:self-start">
 					@KartuProvider(d.Service.Provider, d.IsOwner, d.IsAdmin, d.Service.ID)
+					if d.Statistik != nil {
+						@StatistikKunjungan(*d.Statistik)
+					}
 					if d.DapatDihubungi() && d.Service.Status == model.ServiceActive {
 						@PanelKontak(d)
 					} else if !d.LoggedIn() && d.Service.Status == model.ServiceActive {
@@ -290,4 +299,82 @@ templ PanelKontak(d view.ServiceDetailData) {
 			Permintaan dan pembahasannya berlanjut di halaman Pesan.
 		</p>
 	</div>
+}
+
+// StatistikKunjungan: panel pemilik jasa. Grafik 14 hari digambar sebagai
+// SVG dari data server — tanpa JavaScript, tanpa pustaka grafik.
+templ StatistikKunjungan(st model.StatistikKunjungan) {
+	<section class="surface-panel mt-3 p-4" aria-labelledby="judul-statistik">
+		<div class="flex items-center justify-between gap-2">
+			<h2 id="judul-statistik" class="text-sm font-semibold">Kunjungan</h2>
+			if persen, ok := st.Tren(); ok {
+				<span class="text-xs font-semibold tabular-nums" style={ warnaTren(persen) }>{ labelTren(persen) } vs minggu lalu</span>
+			} else {
+				<span class="text-xs" style="color: var(--text-subtle)">Hanya terlihat oleh Anda</span>
+			}
+		</div>
+		<div class="mt-3 grid grid-cols-3 gap-2">
+			@kotakKunjungan(st.Hari7, "7 hari")
+			@kotakKunjungan(st.Hari30, "30 hari")
+			@kotakKunjungan(st.Total, "Total")
+		</div>
+		@grafikKunjungan(st)
+		<p class="mt-2 text-2xs" style="color: var(--text-subtle)">
+			{ strconv.Itoa(st.Unik30) } pengunjung berbeda dalam 30 hari. Kunjungan Anda sendiri, admin, dan robot tidak dihitung.
+		</p>
+	</section>
+}
+
+templ kotakKunjungan(angka int, label string) {
+	<div class="rounded-md p-2" style="background-color: var(--surface)">
+		<p class="font-display text-xl font-extrabold tabular-nums">{ view.Ringkas(angka) }</p>
+		<p class="text-2xs" style="color: var(--text-muted)">{ label }</p>
+	</div>
+}
+
+// grafikKunjungan: 14 batang terakhir, tinggi relatif terhadap hari tertinggi.
+templ grafikKunjungan(st model.StatistikKunjungan) {
+	<svg viewBox="0 0 140 40" class="mt-3 h-10 w-full" role="img" aria-label="Kunjungan 14 hari terakhir" preserveAspectRatio="none">
+		for i, h := range akhir14(st.Harian) {
+			<rect x={ strconv.Itoa(i * 10) } y={ strconv.Itoa(40 - tinggiBatang(h.Jumlah, st.Maks())) } width="7" height={ strconv.Itoa(tinggiBatang(h.Jumlah, st.Maks())) } rx="1.5" fill={ warnaBatang(i) }>
+				<title>{ h.Tanggal.Format("2 Jan") }: { strconv.Itoa(h.Jumlah) } kunjungan</title>
+			</rect>
+		}
+	</svg>
+}
+
+func akhir14(h []model.KunjunganHarian) []model.KunjunganHarian {
+	if len(h) > 14 {
+		return h[len(h)-14:]
+	}
+	return h
+}
+
+// tinggiBatang menskalakan ke 4–40; nol tetap terlihat sebagai garis tipis.
+func tinggiBatang(n, maks int) int {
+	if n <= 0 || maks <= 0 {
+		return 2
+	}
+	return 4 + n*36/maks
+}
+
+func warnaBatang(i int) string {
+	if i == 13 {
+		return "var(--primary-solid)"
+	}
+	return "var(--primary-soft-strong)"
+}
+
+func warnaTren(persen int) string {
+	if persen < 0 {
+		return "color: var(--danger)"
+	}
+	return "color: var(--positive)"
+}
+
+func labelTren(persen int) string {
+	if persen >= 0 {
+		return "+" + strconv.Itoa(persen) + "%"
+	}
+	return strconv.Itoa(persen) + "%"
 }

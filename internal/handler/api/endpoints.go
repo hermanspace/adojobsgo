@@ -3,6 +3,7 @@ package api
 import (
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 
@@ -159,6 +160,11 @@ func (h *Handler) ServiceDetail(c *fiber.Ctx) error {
 		return fail(c, err)
 	}
 	sembunyikanKontak(h.svc.Settings.Get(c.Context()).Umum.WhatsappAktif, &detail.Provider)
+	current := middleware.CurrentUser(c)
+	pemilik := current != nil && (current.ProviderID == detail.ProviderID || current.IsAdmin)
+	if detail.Status == model.ServiceActive && !pemilik && !service.AdalahBot(c.Get(fiber.HeaderUserAgent)) {
+		h.svc.Kunjungan.Catat(c.Context(), detail.ID, service.SidikPengunjung(c.IP(), c.Get(fiber.HeaderUserAgent), time.Now()))
+	}
 	// Bidang detail tetap di tingkat atas (embedding), ditambah data berbagi
 	// yang persis sama dengan yang dipakai web.
 	return ok(c, struct {

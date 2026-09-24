@@ -156,7 +156,7 @@ seed-dasar:
 
 ## seed-demo: isi konten peragaan lengkap (akun, jasa berfoto, pesanan, ulasan, promosi); kata sandi dari DEMO_PASSWORD atau acak di log
 seed-demo:
-	@$(call compose,run --rm app seed:demo)
+	@$(call compose,run --rm -e DEMO_PASSWORD="$(DEMO_PASSWORD)" app seed:demo)
 
 ## seed: isi data dummy untuk pengembangan
 seed:

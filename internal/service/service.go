@@ -88,6 +88,7 @@ type Services struct {
 	Paket     *PaketService
 	Promosi   *PromosiService
 	Push      *PushService
+	Kunjungan *KunjunganService
 }
 
 // New merangkai seluruh service. Session store dibutuhkan AdminService untuk
@@ -112,6 +113,7 @@ func New(repos *repository.Repositories, cache *database.Cache, cfg *config.Conf
 		Notif:     &NotificationService{repos: repos},
 		Paket:     &PaketService{repos: repos},
 		Promosi:   promosi,
+		Kunjungan: &KunjunganService{repos: repos, cache: cache},
 		Push:      NewPushService(repos, cfg.Push),
 		Portfolio: &PortfolioService{repos: repos, cache: cache, upload: upload},
 		Review:    &ReviewService{repos: repos, cache: cache},

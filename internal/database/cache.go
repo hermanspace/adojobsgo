@@ -101,3 +101,28 @@ func (c *Cache) AmbilDanHapus(ctx context.Context, pattern string) map[string]in
 	}
 	return out
 }
+
+// TambahUnik mencatat satu anggota ke HyperLogLog (PFADD): perkiraan jumlah
+// pengunjung unik dengan memori tetap 12 KB per kunci, apa pun jumlahnya.
+// Kunci kedaluwarsa otomatis supaya tidak menumpuk.
+func (c *Cache) TambahUnik(ctx context.Context, key, anggota string, ttl time.Duration) {
+	if c == nil {
+		return
+	}
+	full := c.prefix + key
+	if err := c.rdb.PFAdd(ctx, full, anggota).Err(); err == nil {
+		_ = c.rdb.Expire(ctx, full, ttl).Err()
+	}
+}
+
+// HitungUnik mengembalikan perkiraan kardinalitas HyperLogLog (PFCOUNT).
+func (c *Cache) HitungUnik(ctx context.Context, key string) int64 {
+	if c == nil {
+		return 0
+	}
+	n, err := c.rdb.PFCount(ctx, c.prefix+key).Result()
+	if err != nil {
+		return 0
+	}
+	return n
+}

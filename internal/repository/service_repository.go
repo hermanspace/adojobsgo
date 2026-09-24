@@ -16,7 +16,7 @@ type ServiceRepository struct{ db DBTX }
 
 const serviceColumns = `id, provider_id, category_id, title, description, price_type,
 	price_min, price_max, status, featured_until, approved_at, approved_by,
-	rejection_reason, submitted_at, created_at`
+	rejection_reason, submitted_at, created_at, total_kunjungan`
 
 // ServiceFilter adalah parameter halaman pencarian. Nilai kosong berarti filter tidak aktif.
 type ServiceFilter struct {
@@ -64,7 +64,7 @@ func scanServiceRow(row pgx.Row) (*model.Service, error) {
 	var s model.Service
 	err := row.Scan(&s.ID, &s.ProviderID, &s.CategoryID, &s.Title, &s.Description,
 		&s.PriceType, &s.PriceMin, &s.PriceMax, &s.Status, &s.FeaturedUntil,
-		&s.ApprovedAt, &s.ApprovedBy, &s.RejectionReason, &s.SubmittedAt, &s.CreatedAt)
+		&s.ApprovedAt, &s.ApprovedBy, &s.RejectionReason, &s.SubmittedAt, &s.CreatedAt, &s.TotalKunjungan)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, ErrNotFound
@@ -125,7 +125,7 @@ func cardSelect(distExpr string) string {
 	return `
 	SELECT s.id, s.provider_id, s.category_id, s.title, s.description, s.price_type,
 	       s.price_min, s.price_max, s.status, s.featured_until, s.approved_at,
-	       s.approved_by, s.rejection_reason, s.submitted_at, s.created_at,
+	       s.approved_by, s.rejection_reason, s.submitted_at, s.created_at, s.total_kunjungan,
 	       img.image_url, c.name, c.slug,
 	       u.full_name, u.city, u.kecamatan,
 	       p.avg_rating, p.total_reviews, p.is_verified, p.featured_until,
@@ -171,7 +171,7 @@ func (r *ServiceRepository) scanCards(ctx context.Context, q string, args ...any
 		var c model.ServiceCard
 		err := rows.Scan(&c.ID, &c.ProviderID, &c.CategoryID, &c.Title, &c.Description,
 			&c.PriceType, &c.PriceMin, &c.PriceMax, &c.Status, &c.FeaturedUntil,
-			&c.ApprovedAt, &c.ApprovedBy, &c.RejectionReason, &c.SubmittedAt, &c.CreatedAt,
+			&c.ApprovedAt, &c.ApprovedBy, &c.RejectionReason, &c.SubmittedAt, &c.CreatedAt, &c.TotalKunjungan,
 			&c.CoverImage, &c.CategoryName, &c.CategorySlug,
 			&c.ProviderName, &c.ProviderCity, &c.ProviderKec,
 			&c.AvgRating, &c.TotalReviews, &c.IsVerified, &c.ProviderFeaturedUntil,
@@ -353,7 +353,7 @@ func (r *ServiceRepository) GetDetail(ctx context.Context, id int64) (*model.Ser
 	const q = `
 		SELECT s.id, s.provider_id, s.category_id, s.title, s.description, s.price_type,
 		       s.price_min, s.price_max, s.status, s.featured_until, s.approved_at,
-		       s.approved_by, s.rejection_reason, s.submitted_at, s.created_at,
+		       s.approved_by, s.rejection_reason, s.submitted_at, s.created_at, s.total_kunjungan,
 		       c.id, c.name, c.slug, c.parent_id, c.icon,
 		       ` + providerDetailKolom + `
 		  FROM services s
@@ -366,7 +366,7 @@ func (r *ServiceRepository) GetDetail(ctx context.Context, id int64) (*model.Ser
 	target := append([]any{
 		&d.ID, &d.ProviderID, &d.CategoryID, &d.Title, &d.Description, &d.PriceType,
 		&d.PriceMin, &d.PriceMax, &d.Status, &d.FeaturedUntil, &d.ApprovedAt,
-		&d.ApprovedBy, &d.RejectionReason, &d.SubmittedAt, &d.CreatedAt,
+		&d.ApprovedBy, &d.RejectionReason, &d.SubmittedAt, &d.CreatedAt, &d.TotalKunjungan,
 		&d.Category.ID, &d.Category.Name, &d.Category.Slug, &d.Category.ParentID, &d.Category.Icon,
 	}, targetProviderDetail(&d.Provider)...)
 

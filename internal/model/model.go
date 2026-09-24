@@ -227,6 +227,45 @@ type Service struct {
 	RejectionReason *string       `json:"rejection_reason,omitempty"`
 	SubmittedAt     time.Time     `json:"submitted_at"`
 	CreatedAt       time.Time     `json:"created_at"`
+	// TotalKunjungan diturunkan trigger dari kunjungan_jasa.
+	TotalKunjungan int `json:"total_kunjungan"`
+}
+
+// KunjunganHarian adalah kunjungan satu jasa pada satu hari.
+type KunjunganHarian struct {
+	Tanggal time.Time `json:"tanggal"`
+	Jumlah  int       `json:"jumlah"`
+	Unik    int       `json:"unik"`
+}
+
+// StatistikKunjungan adalah ringkasan untuk pemilik jasa: 30 hari terakhir.
+type StatistikKunjungan struct {
+	Total      int               `json:"total"`
+	Hari7      int               `json:"hari_7"`
+	Hari30     int               `json:"hari_30"`
+	Unik30     int               `json:"unik_30"`
+	MingguLalu int               `json:"minggu_lalu"`
+	Harian     []KunjunganHarian `json:"harian"`
+}
+
+// Tren membandingkan 7 hari terakhir dengan 7 hari sebelumnya, dalam persen.
+// ok=false bila belum ada pembanding (minggu lalu nol).
+func (s StatistikKunjungan) Tren() (persen int, ok bool) {
+	if s.MingguLalu == 0 {
+		return 0, false
+	}
+	return (s.Hari7 - s.MingguLalu) * 100 / s.MingguLalu, true
+}
+
+// Maks mengembalikan kunjungan harian tertinggi, untuk skala grafik.
+func (s StatistikKunjungan) Maks() int {
+	m := 0
+	for _, h := range s.Harian {
+		if h.Jumlah > m {
+			m = h.Jumlah
+		}
+	}
+	return m
 }
 
 // IsFeatured menandai listing yang sedang disorot dan masa tayangnya berlaku.

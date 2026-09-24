@@ -685,6 +685,20 @@ service worker) dan item baru tampil ketika peramban benar-benar menawarkan
 pemasangan. Ikon PNG-nya dihasilkan `make ikon` dari `favicon.svg` dan warna
 di `tokens.json`.
 
+## Statistik kunjungan jasa
+
+Setiap halaman jasa yang dibuka (web maupun API) menaikkan satu penghitung
+di Redis (`kunjungan:<id>:<tanggal>`) dan menandai pengunjungnya di
+HyperLogLog untuk hitungan unik; tugas berkala (`jalankanBerkala`, tiap menit)
+menyalinnya ke tabel harian `kunjungan_jasa`, dan trigger menurunkan
+`services.total_kunjungan`. Database tidak pernah disentuh per kunjungan.
+Pemilik jasa, admin, dan bot (termasuk pengambil pratinjau tautan WhatsApp/
+Facebook) tidak dihitung; sidik pengunjung adalah hash IP+UA+tanggal, IP
+mentah tidak disimpan. Angka tampil di kartu listing dan halaman jasa;
+pemilik melihat panel 7/30 hari, tren, grafik 14 hari, dan pengunjung unik,
+juga lewat `GET /api/v1/me/services/{id}/stats`. Catatan: `make cache-clear`
+menghapus penghitung yang belum disalin (paling banyak satu menit data).
+
 ## Berbagi jasa & penyedia
 
 Tombol **Bagikan** di halaman jasa dan profil penyedia. Data berbagi (URL

@@ -215,6 +215,7 @@ func jalankanBerkala(ctx context.Context, services *service.Services) {
 			return
 		case <-salin.C:
 			services.Promosi.SalinPenghitungTayang(ctx)
+			services.Kunjungan.Salin(ctx)
 		case <-tutup.C:
 			if _, err := services.Promosi.TandaiKedaluwarsa(ctx); err != nil {
 				slog.Warn("menutup promosi kedaluwarsa", "error", err)

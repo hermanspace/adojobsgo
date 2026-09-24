@@ -3,6 +3,7 @@ package web
 import (
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 
@@ -212,6 +213,14 @@ func (h *Handler) DetailJasa(c *fiber.Ctx) error {
 	// Hanya jasa yang tayang publik yang layak dibagikan.
 	if detail.Status == model.ServiceActive {
 		data.Base.Bagikan = &bagikan
+	}
+	// Kunjungan dihitung untuk pengunjung sungguhan: bukan pemilik, bukan
+	// admin, bukan bot atau pengambil pratinjau tautan.
+	if detail.Status == model.ServiceActive && !isOwner && !isAdmin && !service.AdalahBot(c.Get(fiber.HeaderUserAgent)) {
+		h.svc.Kunjungan.Catat(ctx(c), detail.ID, service.SidikPengunjung(c.IP(), c.Get(fiber.HeaderUserAgent), time.Now()))
+	}
+	if isOwner || isAdmin {
+		data.Statistik, _ = h.svc.Kunjungan.Statistik(ctx(c), detail.ID)
 	}
 	return h.render(c, fiber.StatusOK, pages.ServiceDetail(data))
 }

@@ -204,6 +204,8 @@ type ServiceDetailData struct {
 	// JarakKm dari lokasi acuan pencari jasa ke penyedia.
 	JarakKm *float64
 	Form    Form
+	// Statistik hanya diisi untuk pemilik jasa (dan admin).
+	Statistik *model.StatistikKunjungan
 }
 
 // Menjangkau menandai penyedia yang radius layanannya mencakup lokasi pencari.

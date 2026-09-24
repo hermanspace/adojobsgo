@@ -40,6 +40,7 @@ type Repositories struct {
 	Paket     *PaketRepository
 	Promosi   *PromosiRepository
 	Device    *DeviceRepository
+	Kunjungan *KunjunganRepository
 }
 
 func New(pool *pgxpool.Pool) *Repositories {
@@ -59,6 +60,7 @@ func New(pool *pgxpool.Pool) *Repositories {
 		Paket:     &PaketRepository{db: pool},
 		Promosi:   &PromosiRepository{db: pool},
 		Device:    &DeviceRepository{db: pool},
+		Kunjungan: &KunjunganRepository{db: pool},
 	}
 }
 

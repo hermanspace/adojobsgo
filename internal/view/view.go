@@ -325,3 +325,19 @@ func (b Base) OGGambar() string {
 	}
 	return absolut(b.URL[:len(b.URL)-len(b.Path)], "/static/img/og-default.png")
 }
+
+// Ringkas menulis angka besar secara pendek: 950 → "950", 1.240 → "1,2 rb",
+// 12.400 → "12 rb", 1.200.000 → "1,2 jt".
+func Ringkas(n int) string {
+	f := float64(n)
+	switch {
+	case n < 1000:
+		return strconv.Itoa(n)
+	case n < 10000:
+		return strings.Replace(strconv.FormatFloat(f/1000, 'f', 1, 64), ".", ",", 1) + " rb"
+	case n < 1000000:
+		return strconv.Itoa(n/1000) + " rb"
+	default:
+		return strings.Replace(strconv.FormatFloat(f/1000000, 'f', 1, 64), ".", ",", 1) + " jt"
+	}
+}

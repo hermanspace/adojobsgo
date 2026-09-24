@@ -186,3 +186,14 @@ func hitungLabel(total int) string {
 	}
 	return fmt.Sprintf("%d jasa ditemukan", total)
 }
+
+// Dilihat menampilkan jumlah kunjungan secara ringkas; nol disembunyikan
+// supaya jasa baru tidak terlihat sepi.
+templ Dilihat(jumlah int, class string) {
+	if jumlah > 0 {
+		<span class={ "inline-flex shrink-0 items-center gap-1 tabular-nums", class } style="color: var(--text-subtle)" title={ strconv.Itoa(jumlah) + " kali dilihat" }>
+			@Icon("mata", "h-3.5 w-3.5")
+			{ view.Ringkas(jumlah) }
+		</span>
+	}
+}

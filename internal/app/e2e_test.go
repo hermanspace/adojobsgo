@@ -1308,6 +1308,80 @@ func TestSeedDemo(t *testing.T) {
 	}
 }
 
+// TestStatistikKunjungan: kunjungan dihitung di Redis lalu disalin ke tabel
+// harian; pemilik, admin, dan bot tidak dihitung; angka tampil di kartu,
+// halaman detail, dan API; pemilik melihat statistiknya.
+func TestStatistikKunjungan(t *testing.T) {
+	a := siapkan(t)
+	ctx := context.Background()
+	ua := func(k *klien, agen string) func(string) (int, string) {
+		return func(path string) (int, string) {
+			req := httptest.NewRequest(http.MethodGet, path, nil)
+			req.Header.Set("User-Agent", agen)
+			res := k.kirim(req)
+			return res.StatusCode, baca(res)
+		}
+	}
+	pengunjungA := ua(a.klienBaru(t), "Mozilla/5.0 (Linux; Android 14) Chrome/128 Mobile Safari/537.36")
+	pengunjungB := ua(a.klienBaru(t), "Mozilla/5.0 (Macintosh) Safari/605.1.15")
+	bot := ua(a.klienBaru(t), "facebookexternalhit/1.1")
+	pengunjungA("/jasa/1")
+	pengunjungA("/jasa/1") // orang yang sama dua kali: 2 kunjungan, 1 unik
+	pengunjungB("/jasa/1")
+	bot("/jasa/1") // pratinjau tautan: tidak dihitung
+
+	// pemilik (seed: 628117512001) melihat jasanya sendiri: tidak dihitung
+	pemilik := a.klienBaru(t)
+	harusStatus(t, pemilik.post("/masuk", url.Values{"identifier": {"628117512001"}, "password": {"rahasia123"}}, false), http.StatusSeeOther, "masuk pemilik")
+	req := httptest.NewRequest(http.MethodGet, "/jasa/1", nil)
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Linux; Android 14) Chrome/128")
+	if res := pemilik.kirim(req); res.StatusCode != http.StatusOK {
+		t.Fatalf("pemilik buka jasa = %d", res.StatusCode)
+	}
+
+	if n := a.Services.Kunjungan.Salin(ctx); n != 1 {
+		t.Fatalf("salin kunjungan memperbarui %d baris, harusnya 1 (satu jasa, satu hari)", n)
+	}
+	if got := a.tanya(t, `SELECT jumlah::text || '/' || unik::text FROM kunjungan_jasa WHERE service_id=1`); got != "3/2" {
+		t.Errorf("kunjungan hari ini = %s, harusnya 3/2 (jumlah/unik)", got)
+	}
+	if got := a.tanya(t, `SELECT total_kunjungan::text FROM services WHERE id=1`); got != "3" {
+		t.Errorf("trigger total_kunjungan = %s, harusnya 3", got)
+	}
+	// tampil di halaman detail, kartu pencarian, dan API — dibaca lewat UA bot
+	// supaya pembacaan ini sendiri tidak menambah hitungan
+	if _, isi := bot("/jasa/1"); !strings.Contains(isi, "Dilihat 3 kali") {
+		t.Error("halaman detail tidak menampilkan 'Dilihat 3 kali'")
+	}
+	if _, isi := bot("/cari?q=cuci+ac"); !strings.Contains(isi, `title="3 kali dilihat"`) {
+		t.Error("kartu listing tidak menampilkan jumlah dilihat")
+	}
+	if kode, res := a.klienNative(t).getJSON("/api/v1/services/1"); kode != http.StatusOK || angka(data(t, res)["total_kunjungan"]) != 3 {
+		t.Errorf("API detail total_kunjungan = %v", data(t, res)["total_kunjungan"])
+	}
+	// pemilik melihat panel statistik di web dan lewat API
+	req = httptest.NewRequest(http.MethodGet, "/jasa/1", nil)
+	req.Header.Set("User-Agent", "Mozilla/5.0 Chrome/128")
+	if isi := baca(pemilik.kirim(req)); !strings.Contains(isi, `id="judul-statistik"`) || !strings.Contains(isi, "2 pengunjung berbeda") {
+		t.Error("pemilik tidak melihat panel statistik kunjungan")
+	}
+	native := a.klienNative(t)
+	_, masuk := native.postJSON("/api/v1/auth/login", map[string]any{"identifier": "628117512001", "password": "rahasia123"})
+	native.token, _ = data(t, masuk)["token"].(string)
+	if kode, res := native.getJSON("/api/v1/me/services/1/stats"); kode != http.StatusOK || angka(data(t, res)["hari_7"]) != 3 || angka(data(t, res)["unik_30"]) != 2 || len(data(t, res)["harian"].([]any)) != 30 {
+		t.Errorf("API statistik pemilik = %d %v", kode, res)
+	}
+	if kode, _ := native.getJSON("/api/v1/me/services/3/stats"); kode != http.StatusNotFound {
+		t.Errorf("statistik jasa milik orang lain = %d, harusnya 404", kode)
+	}
+	// setelah pengunjung lain datang lagi, kunjungan tercatat menambah (bukan menimpa)
+	pengunjungA("/jasa/1")
+	a.Services.Kunjungan.Salin(ctx)
+	if got := a.tanya(t, `SELECT total_kunjungan::text FROM services WHERE id=1`); got != "4" {
+		t.Errorf("total setelah salinan kedua = %s, harusnya 4", got)
+	}
+}
+
 // TestHalamanPublik memastikan halaman tanpa login terender, bukan 500.
 func TestHalamanPublik(t *testing.T) {
 	a := siapkan(t)

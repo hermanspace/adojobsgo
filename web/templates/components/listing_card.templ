@@ -71,7 +71,10 @@ templ ListingCard(c model.ServiceCard) {
 								<span class="clamp-1">{ view.Lokasi(c.ProviderKec, c.ProviderCity) }</span>
 							}
 						</span>
-						@RatingRingkas(c.AvgRating, c.TotalReviews)
+						<span class="inline-flex items-center gap-2">
+							@Dilihat(c.TotalKunjungan, "text-2xs")
+							@RatingRingkas(c.AvgRating, c.TotalReviews)
+						</span>
 					</div>
 					if c.JarakKm != nil && !c.Menjangkau() {
 						<!-- Jujur di muka: penyedia ini di luar radius layanannya sendiri,
@@ -111,6 +114,7 @@ templ ListingCardCompact(c model.ServiceCard) {
 			<p class="text-xs" style="color: var(--text-muted)">{ c.CategoryName }</p>
 			<p class="font-display text-sm font-bold">{ view.HargaLabel(c.PriceType, c.PriceMin, c.PriceMax) }</p>
 			<div class="mt-1 flex items-center gap-3 text-xs">
+				@Dilihat(c.TotalKunjungan, "text-xs")
 				<a
 					href={ templ.SafeURL(fmt.Sprintf("/jasa/%d/ubah", c.ID)) }
 					class="inline-flex items-center gap-1 font-semibold"
