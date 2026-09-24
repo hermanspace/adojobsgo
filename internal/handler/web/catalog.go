@@ -219,7 +219,9 @@ func (h *Handler) DetailJasa(c *fiber.Ctx) error {
 	if detail.Status == model.ServiceActive && !isOwner && !isAdmin && !service.AdalahBot(c.Get(fiber.HeaderUserAgent)) {
 		h.svc.Kunjungan.Catat(ctx(c), detail.ID, service.SidikPengunjung(c.IP(), c.Get(fiber.HeaderUserAgent), time.Now()))
 	}
-	if isOwner || isAdmin {
+	// Statistik kunjungan bersifat publik: pencari melihat seberapa ramai
+	// jasa ini, pemilik melihat perkembangan jasanya.
+	if detail.Status == model.ServiceActive {
 		data.Statistik, _ = h.svc.Kunjungan.Statistik(ctx(c), detail.ID)
 	}
 	return h.render(c, fiber.StatusOK, pages.ServiceDetail(data))

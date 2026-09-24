@@ -89,7 +89,11 @@ func (s *KunjunganService) Salin(ctx context.Context) int {
 	return n
 }
 
-// Statistik menyusun ringkasan 30 hari untuk pemilik jasa.
+// Statistik menyusun ringkasan 30 hari. Publik dan tampil di setiap halaman
+// jasa, jadi di-cache 60 detik: satu query per jasa per menit, bukan per
+// tampilan.
 func (s *KunjunganService) Statistik(ctx context.Context, serviceID int64) (*model.StatistikKunjungan, error) {
-	return s.repos.Kunjungan.Statistik(ctx, serviceID, s.sekarang())
+	return database.Remember(ctx, s.cache, "statistik:jasa:"+strconv.FormatInt(serviceID, 10), time.Minute, func() (*model.StatistikKunjungan, error) {
+		return s.repos.Kunjungan.Statistik(ctx, serviceID, s.sekarang())
+	})
 }

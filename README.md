@@ -695,8 +695,8 @@ menyalinnya ke tabel harian `kunjungan_jasa`, dan trigger menurunkan
 Pemilik jasa, admin, dan bot (termasuk pengambil pratinjau tautan WhatsApp/
 Facebook) tidak dihitung; sidik pengunjung adalah hash IP+UA+tanggal, IP
 mentah tidak disimpan. Angka tampil di kartu listing dan halaman jasa;
-pemilik melihat panel 7/30 hari, tren, grafik 14 hari, dan pengunjung unik,
-juga lewat `GET /api/v1/me/services/{id}/stats`. Catatan: `make cache-clear`
+halaman jasa menampilkan panel publik 7/30 hari, tren, grafik 14 hari, dan
+pengunjung unik (di-cache 60 detik), juga lewat `GET /api/v1/services/{id}/stats`. Catatan: `make cache-clear`
 menghapus penghitung yang belum disalin (paling banyak satu menit data).
 
 ## Berbagi jasa & penyedia

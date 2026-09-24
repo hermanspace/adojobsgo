@@ -70,6 +70,7 @@ func registerAPI(app *fiber.App, a *api.Handler, auth *middleware.Auth, batasUng
 	v1.Get("/kecamatan", a.KecamatanOptions)
 	v1.Get("/services", a.SearchServices)
 	v1.Get("/services/:id", a.ServiceDetail)
+	v1.Get("/services/:id/stats", a.ServiceStats)
 	v1.Get("/providers/:id", a.ProviderDetail)
 
 	v1.Post("/providers", auth.RequireAPI, a.CreateProvider)
@@ -87,7 +88,6 @@ func registerAPI(app *fiber.App, a *api.Handler, auth *middleware.Auth, batasUng
 	me.Delete("/services/:id", penyedia, a.DeleteListing)
 	me.Post("/services/:id/images", penyedia, batasUnggah, a.UploadListingImages)
 	me.Delete("/services/:id/images/:imageID", penyedia, a.DeleteListingImage)
-	me.Get("/services/:id/stats", penyedia, a.ServiceStats)
 	me.Patch("/provider/location", penyedia, a.UpdateProviderLocation)
 	me.Get("/portfolio", penyedia, a.MyPortfolio)
 	me.Post("/portfolio", penyedia, batasUnggah, a.AddPortfolio)

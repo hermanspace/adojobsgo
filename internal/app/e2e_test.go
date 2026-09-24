@@ -1365,21 +1365,15 @@ func TestStatistikKunjungan(t *testing.T) {
 	if kode, res := a.klienNative(t).getJSON("/api/v1/services/1"); kode != http.StatusOK || angka(data(t, res)["total_kunjungan"]) != 3 {
 		t.Errorf("API detail total_kunjungan = %v", data(t, res)["total_kunjungan"])
 	}
-	// pemilik melihat panel statistik di web dan lewat API
-	req = httptest.NewRequest(http.MethodGet, "/jasa/1", nil)
-	req.Header.Set("User-Agent", "Mozilla/5.0 Chrome/128")
-	if isi := baca(pemilik.kirim(req)); !strings.Contains(isi, `id="judul-statistik"`) || !strings.Contains(isi, "2 pengunjung berbeda") {
-		t.Error("pemilik tidak melihat panel statistik kunjungan")
+	// panel statistik publik: tamu (bot UA, agar tidak menambah hitungan) melihatnya di web dan lewat API
+	if _, isi := bot("/jasa/1"); !strings.Contains(isi, `id="judul-statistik"`) || !strings.Contains(isi, "2 pengunjung berbeda") {
+		t.Error("tamu tidak melihat panel statistik kunjungan")
 	}
-	native := a.klienNative(t)
-	_, masuk := native.postJSON("/api/v1/auth/login", map[string]any{"identifier": "628117512001", "password": "rahasia123"})
-	native.token, _ = data(t, masuk)["token"].(string)
-	if kode, res := native.getJSON("/api/v1/me/services/1/stats"); kode != http.StatusOK || angka(data(t, res)["hari_7"]) != 3 || angka(data(t, res)["unik_30"]) != 2 || len(data(t, res)["harian"].([]any)) != 30 {
-		t.Errorf("API statistik pemilik = %d %v", kode, res)
+	if kode, res := a.klienNative(t).getJSON("/api/v1/services/1/stats"); kode != http.StatusOK || angka(data(t, res)["hari_7"]) != 3 || angka(data(t, res)["unik_30"]) != 2 || len(data(t, res)["harian"].([]any)) != 30 {
+		t.Errorf("API statistik publik = %d %v", kode, res)
 	}
-	if kode, _ := native.getJSON("/api/v1/me/services/3/stats"); kode != http.StatusNotFound {
-		t.Errorf("statistik jasa milik orang lain = %d, harusnya 404", kode)
-	}
+	// statistik di-cache 60 detik: kunjungan baru belum tampak sebelum cache dibersihkan
+	a.Rdb.FlushDB(ctx)
 	// setelah pengunjung lain datang lagi, kunjungan tercatat menambah (bukan menimpa)
 	pengunjungA("/jasa/1")
 	a.Services.Kunjungan.Salin(ctx)

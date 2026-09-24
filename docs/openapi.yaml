@@ -270,6 +270,14 @@ paths:
       summary: Detail jasa. Memanggilnya menghitung satu kunjungan (kecuali pemilik/admin/bot).
       parameters: [ { $ref: '#/components/parameters/id' } ]
       responses: { "200": { description: "Detail jasa + images + category + provider + bagikan (Bagikan) + total_kunjungan" } }
+  /services/{id}/stats:
+    get:
+      security: []
+      summary: Statistik kunjungan 30 hari (publik, di-cache 60 detik)
+      parameters: [ { $ref: '#/components/parameters/id' } ]
+      responses:
+        "200": { description: "{total, hari_7, hari_30, unik_30, minggu_lalu, harian: [{tanggal, jumlah, unik}] × 30}" }
+        "404": { description: Jasa tidak aktif }
   /services/{id}/conversations:
     post: { parameters: [ { $ref: '#/components/parameters/id' } ], summary: Buka atau temukan ruang obrolan untuk jasa ini, responses: { "201": { description: Conversation } } }
   /services/{id}/orders:
@@ -304,13 +312,6 @@ paths:
   /me/services/{id}:
     patch: { parameters: [ { $ref: '#/components/parameters/id' } ], responses: { "200": { description: Service } } }
     delete: { parameters: [ { $ref: '#/components/parameters/id' } ], responses: { "200": { description: OK } } }
-  /me/services/{id}/stats:
-    get:
-      summary: Statistik kunjungan 30 hari (pemilik jasa / admin)
-      parameters: [ { $ref: '#/components/parameters/id' } ]
-      responses:
-        "200": { description: "{total, hari_7, hari_30, unik_30, minggu_lalu, harian: [{tanggal, jumlah, unik}] × 30}" }
-        "404": { description: Bukan jasa milik pemanggil }
   /me/services/{id}/images:
     post: { parameters: [ { $ref: '#/components/parameters/id' } ], requestBody: { content: { multipart/form-data: { schema: { type: object, properties: { foto: { type: array, items: { type: string, format: binary } } } } } } }, responses: { "201": { description: ServiceImage[] } } }
   /me/services/{id}/images/{imageID}:

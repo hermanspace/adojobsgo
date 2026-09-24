@@ -1033,7 +1033,7 @@ func PanelKontak(d view.ServiceDetailData) templ.Component {
 	})
 }
 
-// StatistikKunjungan: panel pemilik jasa. Grafik 14 hari digambar sebagai
+// StatistikKunjungan: panel publik di halaman jasa. Grafik 14 hari digambar sebagai
 // SVG dari data server — tanpa JavaScript, tanpa pustaka grafik.
 func StatistikKunjungan(st model.StatistikKunjungan) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
@@ -1092,7 +1092,7 @@ func StatistikKunjungan(st model.StatistikKunjungan) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 102, "<span class=\"text-xs\" style=\"color: var(--text-subtle)\">Hanya terlihat oleh Anda</span>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 102, "<span class=\"text-xs\" style=\"color: var(--text-subtle)\">30 hari terakhir</span>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1134,7 +1134,7 @@ func StatistikKunjungan(st model.StatistikKunjungan) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 106, " pengunjung berbeda dalam 30 hari. Kunjungan Anda sendiri, admin, dan robot tidak dihitung.</p></section>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 106, " pengunjung berbeda dalam 30 hari. Kunjungan pemilik, admin, dan robot tidak dihitung; diperbarui tiap menit.</p></section>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

@@ -142,19 +142,18 @@ func (h *Handler) Help(c *fiber.Ctx) error {
 	})
 }
 
-// ServiceStats mengembalikan statistik kunjungan 30 hari untuk jasa milik
-// penyedia yang masuk (admin juga boleh).
+// ServiceStats mengembalikan statistik kunjungan 30 hari sebuah jasa aktif.
+// Publik, sama seperti panel di halaman web.
 func (h *Handler) ServiceStats(c *fiber.Ctx) error {
 	id, err := idParam(c, "Jasa tidak ditemukan.")
 	if err != nil {
 		return fail(c, err)
 	}
-	current := middleware.CurrentUser(c)
 	jasa, err := h.svc.Listing.GetDetail(c.Context(), id)
 	if err != nil {
 		return fail(c, err)
 	}
-	if jasa.ProviderID != current.ProviderID && !current.IsAdmin {
+	if jasa.Status != model.ServiceActive {
 		return fail(c, service.NotFound("Jasa tidak ditemukan."))
 	}
 	st, err := h.svc.Kunjungan.Statistik(c.Context(), id)

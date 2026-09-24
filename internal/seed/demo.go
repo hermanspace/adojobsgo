@@ -355,29 +355,24 @@ func buatPromosi(ctx context.Context, repos *repository.Repositories, upload *se
 }
 
 // buatKunjungan menanam riwayat kunjungan 30 hari untuk setiap jasa aktif
-// supaya angka "dilihat" dan panel statistik pemilik langsung berisi. Pola
-// dibuat wajar: jasa dengan urutan lebih awal lebih ramai, akhir pekan
-// sedikit lebih tinggi, dan ada variasi harian deterministik (tanpa acak
-// supaya hasilnya sama di setiap lingkungan). Dilewati bila tabel sudah
-// berisi — kunjungan sungguhan tidak boleh tercampur data demo baru.
+// yang masih nol, supaya angka "dilihat" dan panel statistik langsung
+// berisi. Pola dibuat wajar: jasa dengan urutan lebih awal lebih ramai,
+// akhir pekan sedikit lebih tinggi, dan ada variasi harian deterministik
+// (tanpa acak supaya hasilnya sama di setiap lingkungan). Jasa yang sudah
+// punya kunjungan tidak disentuh.
 func buatKunjungan(ctx context.Context, repos *repository.Repositories) error {
 	jasa, err := repos.Service.Search(ctx, repository.ServiceFilter{Limit: 100})
 	if err != nil {
 		return err
 	}
-	ada := false
-	for _, j := range jasa {
-		if j.TotalKunjungan > 0 {
-			ada = true
-			break
-		}
-	}
-	if ada || len(jasa) == 0 {
-		return nil
-	}
 	hariIni := time.Now().Truncate(24 * time.Hour)
-	total := 0
+	total, diisi := 0, 0
 	for i, j := range jasa {
+		// Jasa yang sudah punya kunjungan (sungguhan atau demo) tidak disentuh.
+		if j.TotalKunjungan > 0 {
+			continue
+		}
+		diisi++
 		dasar := 3 + (len(jasa)-i)%7 // 3–9 kunjungan per hari
 		for d := 29; d >= 1; d-- {   // hari ini dibiarkan diisi kunjungan sungguhan
 			tgl := hariIni.AddDate(0, 0, -d)
@@ -392,6 +387,6 @@ func buatKunjungan(ctx context.Context, repos *repository.Repositories) error {
 			total += n
 		}
 	}
-	slog.Info("riwayat kunjungan demo tersimpan", "jasa", len(jasa), "kunjungan", total)
+	slog.Info("riwayat kunjungan demo tersimpan", "jasa", diisi, "kunjungan", total)
 	return nil
 }
