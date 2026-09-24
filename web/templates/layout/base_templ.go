@@ -355,8 +355,11 @@ func Header(b view.Base) templ.Component {
 	})
 }
 
-// Logo: wordmark tipografis dengan satu titik beraksen gradasi.
-// Tidak memakai gambar agar tetap tajam di semua kerapatan layar.
+// Logo: wordmark "Adojobs" dengan titik huruf j berupa pin lokasi — jasa
+// yang benar-benar ada di dekat Anda. Digambar sebagai SVG sebaris, bukan
+// gambar: tajam di semua kerapatan layar, memakai font yang sudah dimuat
+// halaman, dan warnanya mengikuti token sehingga mode gelap ikut benar.
+// Sumber vektor untuk kebutuhan lain ada di docs/marketing/logo-*.svg.
 func Logo() templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -378,7 +381,7 @@ func Logo() templ.Component {
 			templ_7745c5c3_Var14 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 33, "<span class=\"font-display text-lg font-extrabold tracking-tight\" style=\"color: var(--text)\">Ado<span style=\"background-image: linear-gradient(103deg, var(--primary-from), var(--primary-to)); -webkit-background-clip: text; background-clip: text; color: transparent\">jobs</span></span> <span class=\"hidden text-2xs font-semibold uppercase tracking-widest sm:inline\" style=\"color: var(--text-subtle)\">Bengkalis</span>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 33, "<svg width=\"102\" height=\"28\" viewBox=\"0 -2 124 34\" class=\"h-7 w-auto shrink-0\" role=\"img\" aria-label=\"Adojobs\"><defs><linearGradient id=\"logo-g\" x1=\"0\" y1=\"0\" x2=\"1\" y2=\"1\"><stop offset=\"0\" style=\"stop-color: var(--primary-from)\"></stop> <stop offset=\"1\" style=\"stop-color: var(--primary-to)\"></stop></linearGradient></defs> <text x=\"0\" y=\"26\" font-family=\"'Bricolage Grotesque', ui-sans-serif, system-ui, sans-serif\" font-weight=\"800\" font-size=\"29\" letter-spacing=\"-0.8\" style=\"fill: var(--text)\">Ado<tspan fill=\"url(#logo-g)\">jobs</tspan></text> <path transform=\"translate(51.6,-3.2) scale(0.36)\" d=\"M16 31c-6.5-7-10-12.3-10-17A10 10 0 0 1 26 14c0 4.7-3.5 10-10 17Z\" fill=\"url(#logo-g)\"></path> <circle cx=\"57.4\" cy=\"1.9\" r=\"1.35\" fill=\"#fff\"></circle></svg> <span class=\"hidden text-2xs font-semibold uppercase tracking-widest sm:inline\" style=\"color: var(--text-subtle)\">Bengkalis</span>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -500,7 +503,7 @@ func navItemBadge(href string, icon string, label string, active string, jumlah 
 		var templ_7745c5c3_Var18 templ.SafeURL
 		templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(href))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/templates/layout/base.templ`, Line: 165, Col: 28}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/templates/layout/base.templ`, Line: 176, Col: 28}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var18))
 		if templ_7745c5c3_Err != nil {
@@ -526,7 +529,7 @@ func navItemBadge(href string, icon string, label string, active string, jumlah 
 		var templ_7745c5c3_Var20 string
 		templ_7745c5c3_Var20, templ_7745c5c3_Err = templ.ResolveAttributeValue(ariaCurrent(active == icon))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/templates/layout/base.templ`, Line: 167, Col: 44}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/templates/layout/base.templ`, Line: 178, Col: 44}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var20)
 		if templ_7745c5c3_Err != nil {
@@ -551,7 +554,7 @@ func navItemBadge(href string, icon string, label string, active string, jumlah 
 		var templ_7745c5c3_Var21 string
 		templ_7745c5c3_Var21, templ_7745c5c3_Err = templ.JoinStringErrs(label)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/templates/layout/base.templ`, Line: 173, Col: 15}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/templates/layout/base.templ`, Line: 184, Col: 15}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var21))
 		if templ_7745c5c3_Err != nil {
@@ -596,7 +599,7 @@ func LogoSitus(s view.SitusRingkas) templ.Component {
 			var templ_7745c5c3_Var23 string
 			templ_7745c5c3_Var23, templ_7745c5c3_Err = templ.ResolveAttributeValue(s.LogoURL)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/templates/layout/base.templ`, Line: 181, Col: 22}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/templates/layout/base.templ`, Line: 192, Col: 22}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var23)
 			if templ_7745c5c3_Err != nil {
@@ -609,7 +612,7 @@ func LogoSitus(s view.SitusRingkas) templ.Component {
 			var templ_7745c5c3_Var24 string
 			templ_7745c5c3_Var24, templ_7745c5c3_Err = templ.ResolveAttributeValue(s.Nama)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/templates/layout/base.templ`, Line: 181, Col: 37}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/templates/layout/base.templ`, Line: 192, Col: 37}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var24)
 			if templ_7745c5c3_Err != nil {
@@ -662,7 +665,7 @@ func navItem(href string, icon string, label string, active string) templ.Compon
 		var templ_7745c5c3_Var27 templ.SafeURL
 		templ_7745c5c3_Var27, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(href))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/templates/layout/base.templ`, Line: 189, Col: 28}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/templates/layout/base.templ`, Line: 200, Col: 28}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var27))
 		if templ_7745c5c3_Err != nil {
@@ -688,7 +691,7 @@ func navItem(href string, icon string, label string, active string) templ.Compon
 		var templ_7745c5c3_Var29 string
 		templ_7745c5c3_Var29, templ_7745c5c3_Err = templ.ResolveAttributeValue(ariaCurrent(active == icon))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/templates/layout/base.templ`, Line: 191, Col: 44}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/templates/layout/base.templ`, Line: 202, Col: 44}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var29)
 		if templ_7745c5c3_Err != nil {
@@ -709,7 +712,7 @@ func navItem(href string, icon string, label string, active string) templ.Compon
 		var templ_7745c5c3_Var30 string
 		templ_7745c5c3_Var30, templ_7745c5c3_Err = templ.JoinStringErrs(label)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/templates/layout/base.templ`, Line: 194, Col: 15}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/templates/layout/base.templ`, Line: 205, Col: 15}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var30))
 		if templ_7745c5c3_Err != nil {
@@ -764,7 +767,7 @@ func Footer(b view.Base) templ.Component {
 			var templ_7745c5c3_Var32 string
 			templ_7745c5c3_Var32, templ_7745c5c3_Err = templ.JoinStringErrs(b.Situs.TeksFooter)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/templates/layout/base.templ`, Line: 206, Col: 77}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/templates/layout/base.templ`, Line: 217, Col: 77}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var32))
 			if templ_7745c5c3_Err != nil {

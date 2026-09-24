@@ -130,12 +130,23 @@ templ Header(b view.Base) {
 	</header>
 }
 
-// Logo: wordmark tipografis dengan satu titik beraksen gradasi.
-// Tidak memakai gambar agar tetap tajam di semua kerapatan layar.
+// Logo: wordmark "Adojobs" dengan titik huruf j berupa pin lokasi — jasa
+// yang benar-benar ada di dekat Anda. Digambar sebagai SVG sebaris, bukan
+// gambar: tajam di semua kerapatan layar, memakai font yang sudah dimuat
+// halaman, dan warnanya mengikuti token sehingga mode gelap ikut benar.
+// Sumber vektor untuk kebutuhan lain ada di docs/marketing/logo-*.svg.
 templ Logo() {
-	<span class="font-display text-lg font-extrabold tracking-tight" style="color: var(--text)">
-		Ado<span style="background-image: linear-gradient(103deg, var(--primary-from), var(--primary-to)); -webkit-background-clip: text; background-clip: text; color: transparent">jobs</span>
-	</span>
+	<svg width="102" height="28" viewBox="0 -2 124 34" class="h-7 w-auto shrink-0" role="img" aria-label="Adojobs">
+		<defs>
+			<linearGradient id="logo-g" x1="0" y1="0" x2="1" y2="1">
+				<stop offset="0" style="stop-color: var(--primary-from)"></stop>
+				<stop offset="1" style="stop-color: var(--primary-to)"></stop>
+			</linearGradient>
+		</defs>
+		<text x="0" y="26" font-family="'Bricolage Grotesque', ui-sans-serif, system-ui, sans-serif" font-weight="800" font-size="29" letter-spacing="-0.8" style="fill: var(--text)">Ado<tspan fill="url(#logo-g)">jobs</tspan></text>
+		<path transform="translate(51.6,-3.2) scale(0.36)" d="M16 31c-6.5-7-10-12.3-10-17A10 10 0 0 1 26 14c0 4.7-3.5 10-10 17Z" fill="url(#logo-g)"></path>
+		<circle cx="57.4" cy="1.9" r="1.35" fill="#fff"></circle>
+	</svg>
 	<span class="hidden text-2xs font-semibold uppercase tracking-widest sm:inline" style="color: var(--text-subtle)">Bengkalis</span>
 }
 

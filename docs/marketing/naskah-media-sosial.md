@@ -156,3 +156,22 @@ SVG lalu render ulang dengan Chrome headless: `--window-size=1080,1080
 | `post-01-peluncuran.png` | 1080×1080 | Postingan 1 |
 | `post-02-penyedia.png` | 1080×1080 | Postingan 2 |
 | `post-03-cara-kerja-1..3.png` | 1080×1080 | Postingan 3, carousel/album 3 slide |
+
+## Logo
+
+Konsep terpilih: **wordmark** "Adojobs" dengan titik huruf j berupa pin
+lokasi (lihat `logo-konsep.png` untuk alternatif yang tidak dipakai). Di
+header situs logo digambar sebagai SVG sebaris (`layout.Logo`), sehingga
+tajam, mengikuti mode gelap, dan tidak perlu diunggah lewat admin. Jangan
+mengunggah logo raster di `/admin/pengaturan` kecuali ada kebutuhan khusus;
+unggahan menggantikan wordmark dan tidak beradaptasi ke mode gelap.
+
+| Berkas | Pakai untuk |
+|---|---|
+| `logo-terang.svg` / `logo-terang@4x.png` (496×136) | latar terang |
+| `logo-gelap.svg` / `logo-gelap@4x.png` | latar gelap |
+| `logo-*-bengkalis.*` | versi dengan sub-teks BENGKALIS, untuk cetak/kop/spanduk |
+
+Rasio lockup 124:34 (≈ 3,6:1); slot header 28 px tinggi → lebar 102 px.
+Ruang aman di sekeliling minimal setinggi huruf "o". Jangan mengubah warna
+gradasi, memiringkan, atau menambahkan bayangan.
