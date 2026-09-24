@@ -298,12 +298,15 @@ if (typeof htmx !== 'undefined' && htmx.config) {
     var url = tombol.dataset.salinTautan;
     var label = tombol.querySelector('[data-salin-label]');
     var selesai = function (berhasil) {
-      if (!label) return;
-      var asli = label.textContent;
-      label.textContent = berhasil ? 'Tersalin' : 'Gagal menyalin';
+      var pesan = berhasil ? 'Tersalin' : 'Gagal menyalin';
+      var asli = label ? label.textContent : '';
+      var judulAsli = tombol.getAttribute('title');
+      if (label) label.textContent = pesan;
+      if (judulAsli) tombol.setAttribute('title', pesan);
       tombol.classList.toggle('is-tersalin', berhasil);
       setTimeout(function () {
-        label.textContent = asli;
+        if (label) label.textContent = asli;
+        if (judulAsli) tombol.setAttribute('title', judulAsli);
         tombol.classList.remove('is-tersalin');
       }, 1800);
     };

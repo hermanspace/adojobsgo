@@ -12,19 +12,39 @@ import "github.com/hermansyah/adojobsid/internal/view"
 // Data (URL, teks, target) datang dari view.Bagikan — sumber yang sama
 // dengan API Android.
 templ TombolBagikan(b view.Bagikan, id string, kelas string) {
-	<button
-		type="button"
-		class={ "btn btn-secondary", kelas }
-		data-bagikan
-		data-bagikan-sheet={ "#" + id }
-		data-judul={ b.Judul }
-		data-teks={ b.Teks }
-		data-url={ b.URL }
-		aria-haspopup="dialog"
-	>
-		@Icon("bagikan", "h-4 w-4")
-		Bagikan
-	</button>
+	<div class={ "bagikan-panel", kelas }>
+		<button
+			type="button"
+			class="bagikan-utama"
+			data-bagikan
+			data-bagikan-sheet={ "#" + id }
+			data-judul={ b.Judul }
+			data-teks={ b.Teks }
+			data-url={ b.URL }
+			aria-haspopup="dialog"
+		>
+			<span class="bagikan-lencana">
+				@Icon("bagikan", "h-5 w-5")
+			</span>
+			<span class="min-w-0 text-left">
+				<span class="block text-sm font-semibold">Bagikan</span>
+				<span class="block text-xs" style="color: var(--text-muted)">Kirim ke teman yang sedang butuh</span>
+			</span>
+		</button>
+		<div class="bagikan-cepat" aria-label="Bagikan langsung">
+			for _, t := range b.Target {
+				if t.Kunci == "whatsapp" || t.Kunci == "facebook" || t.Kunci == "telegram" {
+					<a href={ templ.SafeURL(t.URL) } class="bagikan-cepat-item" target="_blank" rel="noopener" aria-label={ "Bagikan ke " + t.Label } title={ t.Label }>
+						@IkonMerek(t.Kunci, "h-4.5 w-4.5")
+					</a>
+				}
+			}
+			<button type="button" class="bagikan-cepat-item" data-salin-tautan={ b.URL } aria-label="Salin tautan" title="Salin tautan">
+				@Icon("salin", "h-4.5 w-4.5")
+				<span class="sr-only" data-salin-label>Salin tautan</span>
+			</button>
+		</div>
+	</div>
 	<dialog id={ id } class="sheet sheet-tengah" aria-labelledby={ id + "-judul" }>
 		<div class="flex items-center gap-3 px-4 pt-4 pb-3" style="border-bottom: 1px solid var(--border)">
 			<div class="min-w-0 flex-1">

@@ -577,6 +577,58 @@
     color: var(--primary-solid);
   }
 
+  /* ---------- panel bagikan ----------
+     Satu baris: tombol utama (ikon bergradasi + keterangan) dan pintasan
+     bulat ke platform yang paling sering dipakai. Pintasan adalah tautan
+     biasa; tombol utama memanggil Web Share API atau membuka sheet. */
+  .bagikan-panel {
+    @apply flex flex-wrap items-center gap-3 rounded-lg p-3;
+    background-color: var(--surface-raised);
+    border: 1px solid var(--border);
+  }
+
+  .bagikan-utama {
+    @apply flex min-w-0 flex-1 items-center gap-3 rounded-md text-left;
+    min-height: var(--ukuran-sentuh-min);
+  }
+
+  .bagikan-lencana {
+    @apply inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full;
+    color: var(--primary-contrast);
+    background-image: linear-gradient(103deg, var(--primary-from), var(--primary-to));
+    box-shadow: var(--shadow-subtle);
+    transition: transform 200ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .bagikan-utama:hover .bagikan-lencana {
+    transform: translateY(-1px) scale(1.04);
+  }
+
+  .bagikan-cepat {
+    @apply flex items-center gap-1.5;
+  }
+
+  .bagikan-cepat-item {
+    @apply inline-flex h-9 w-9 items-center justify-center rounded-full;
+    color: var(--primary-solid);
+    background-color: var(--primary-soft);
+    border: 1px solid transparent;
+    transition: color 120ms, background-color 120ms, border-color 120ms, transform 120ms;
+  }
+
+  .bagikan-cepat-item:hover,
+  .bagikan-cepat-item:focus-visible {
+    color: var(--primary-contrast);
+    background-image: linear-gradient(103deg, var(--primary-from), var(--primary-to));
+    transform: translateY(-1px);
+  }
+
+  .bagikan-cepat-item.is-tersalin {
+    color: var(--positive);
+    background-color: var(--surface);
+    border-color: var(--positive);
+  }
+
   /* ---------- sheet bagikan ---------- */
   .bagikan-target {
     @apply flex flex-col items-center gap-2 rounded-md px-1 py-3 text-center text-xs font-semibold;
