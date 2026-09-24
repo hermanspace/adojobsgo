@@ -8,6 +8,7 @@
 //	server migrate down membatalkan satu migrasi
 //	server migrate version menampilkan versi migrasi aktif
 //	server seed       mengisi data awal untuk pengembangan
+//	server seed:dasar mengisi kategori & paket promosi saja (produksi)
 //	server admin:create  membuat atau menaikkan satu akun menjadi admin
 package main
 
@@ -77,7 +78,7 @@ func main() {
 			fatal(err)
 		}
 	default:
-		fatal(fmt.Errorf("perintah tidak dikenal: %q (pilihan: serve, migrate, seed, admin:create)", args[0]))
+		fatal(fmt.Errorf("perintah tidak dikenal: %q (pilihan: serve, migrate, seed, seed:dasar, admin:create)", args[0]))
 	}
 }
 
