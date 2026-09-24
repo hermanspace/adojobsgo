@@ -45,6 +45,10 @@ else
   SSH_TTY       :=
 endif
 
+# Target deploy/releases/rollback SELALU menyasar server, apa pun ENV.
+SSH_PROD     = ssh -p $(DEPLOY_PORT) $(DEPLOY_USER)@$(DEPLOY_HOST)
+COMPOSE_PROD = cd $(DEPLOY_PATH) && docker compose -f docker-compose.yml -f docker-compose.prod.yml
+
 # compose  : perintah non-interaktif (aman untuk pipe dan redirect)
 # composei : perintah interaktif (psql, shell) — butuh TTY
 ifeq ($(ENV),prod)
@@ -227,7 +231,7 @@ deploy: deploy-check
 		--platform linux/amd64 \
 		.
 	@echo "==> Menyalin berkas compose ke $(DEPLOY_HOST):$(DEPLOY_PATH)"
-	@$(SSH) 'mkdir -p $(DEPLOY_PATH)'
+	@$(SSH_PROD) 'mkdir -p $(DEPLOY_PATH)'
 	@scp -P $(DEPLOY_PORT) -q \
 		docker-compose.yml docker-compose.prod.yml \
 		$(DEPLOY_USER)@$(DEPLOY_HOST):$(DEPLOY_PATH)/
@@ -236,30 +240,30 @@ deploy: deploy-check
 ifeq ($(strip $(DEPLOY_REGISTRY)),)
 	@echo "==> Mengirim image lewat SSH (tanpa registry)"
 	@docker save $(APP_IMAGE):$(APP_TAG) $(APP_IMAGE):$(DEPLOY_STAMP) | gzip --fast | \
-		$(SSH) 'gunzip | docker load'
+		$(SSH_PROD) 'gunzip | docker load'
 else
 	@echo "==> Mendorong image ke registry $(DEPLOY_REGISTRY)"
 	@docker tag $(APP_IMAGE):$(APP_TAG) $(DEPLOY_REGISTRY)/$(APP_IMAGE):$(APP_TAG)
 	@docker push $(DEPLOY_REGISTRY)/$(APP_IMAGE):$(APP_TAG)
-	@$(SSH) 'cd $(DEPLOY_PATH) && docker compose $(COMPOSE_FILES) pull app'
+	@$(SSH_PROD) '$(COMPOSE_PROD) pull app'
 endif
 	@echo "==> Menjalankan migrasi di server"
 	@$(MAKE) --no-print-directory migrate ENV=prod
 	@echo "==> Menjalankan ulang service di server"
 	@$(MAKE) --no-print-directory up ENV=prod
 	@echo "==> Selesai. Versi ini tersimpan sebagai $(APP_IMAGE):$(DEPLOY_STAMP) di server."
-	@echo "    Rollback: make rollback ENV=prod TAG=<stamp>   (daftar: make releases ENV=prod)"
+	@echo "    Rollback: make rollback TAG=<stamp>   (daftar: make releases)"
 
-## releases: daftar tag image yang tersedia untuk rollback
+## releases: daftar tag image di server yang tersedia untuk rollback
 releases:
-	@$(SSH) 'docker image ls $(APP_IMAGE) --format "  {{.Tag}}\t{{.CreatedSince}}" | grep -v latest'
+	@$(SSH_PROD) 'docker image ls $(APP_IMAGE) --format "  {{.Tag}}\t{{.CreatedSince}}" | grep -v latest'
 
-## rollback: kembalikan app ke tag tertentu (TAG=YYYYmmdd-HHMM), tanpa migrasi mundur
+## rollback: kembalikan app di server ke tag tertentu (TAG=YYYYmmdd-HHMM), tanpa migrasi mundur
 rollback:
-	@if [ -z "$(TAG)" ]; then echo "  Sebutkan tag: make rollback ENV=prod TAG=20260924-1015"; exit 1; fi
+	@if [ -z "$(TAG)" ]; then echo "  Sebutkan tag: make rollback TAG=20260924-1015"; exit 1; fi
 	@echo "==> Menandai $(APP_IMAGE):$(TAG) sebagai $(APP_TAG) lalu menjalankan ulang app"
-	@$(SSH) 'docker tag $(APP_IMAGE):$(TAG) $(APP_IMAGE):$(APP_TAG)'
-	@$(call compose,up -d app)
+	@$(SSH_PROD) 'docker tag $(APP_IMAGE):$(TAG) $(APP_IMAGE):$(APP_TAG)'
+	@$(SSH_PROD) '$(COMPOSE_PROD) up -d app'
 	@echo "  Catatan: migrasi database tidak dimundurkan; pastikan versi ini kompatibel dengan skema saat ini."
 
 ## deploy-check: pastikan tujuan deploy sudah terkonfigurasi
@@ -267,7 +271,7 @@ deploy-check:
 	@if [ -z "$(DEPLOY_HOST)" ]; then \
 		echo "  DEPLOY_HOST belum diisi di .env."; exit 1; \
 	fi
-	@if ! $(SSH) 'test -f $(DEPLOY_PATH)/.env' 2>/dev/null; then \
+	@if ! $(SSH_PROD) 'test -f $(DEPLOY_PATH)/.env' 2>/dev/null; then \
 		echo "  Berkas $(DEPLOY_PATH)/.env belum ada di server."; \
 		echo "  Salin sekali saat setup awal:"; \
 		echo "    ssh -p $(DEPLOY_PORT) $(DEPLOY_USER)@$(DEPLOY_HOST) 'mkdir -p $(DEPLOY_PATH)'"; \

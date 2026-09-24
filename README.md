@@ -907,8 +907,8 @@ langsung. Mode SSL Cloudflare: **Full (strict)**.
 ```bash
 make admin-create ENV=prod      # admin pertama dari ADMIN_PHONE/ADMIN_PASSWORD di .env server
 make logs-app ENV=prod
-make releases ENV=prod          # daftar tag image yang tersedia
-make rollback ENV=prod TAG=20260924-1015
+make releases                   # daftar tag image di server
+make rollback TAG=20260924-1015
 make backup ENV=prod            # database + arsip foto ditarik ke backups/ di Mac
 ```
 
