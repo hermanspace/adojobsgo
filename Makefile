@@ -190,11 +190,10 @@ fmt:
 	@echo "  Kode sudah diformat."
 
 ## cache-clear: kosongkan cache aplikasi di Redis (hasil pencarian, filter, pengaturan) — sesi login tidak disentuh
-# Skrip Lua-nya disimpan di variabel karena mengandung koma; koma literal di
-# dalam argumen $(call ...) akan dibaca make sebagai pemisah argumen.
-LUA_HAPUS_CACHE = local n=0 for _,k in ipairs(redis.call('KEYS', ARGV[1])) do redis.call('DEL', k) n=n+1 end return n
+# Kata sandi diambil dari environment container redis, bukan .env lokal: saat
+# ENV=prod nilai lokal berbeda dengan server dan perintahnya diam-diam gagal.
 cache-clear:
-	@$(call compose,exec -T redis redis-cli -a "$(REDIS_PASSWORD)" --no-auth-warning EVAL "$(LUA_HAPUS_CACHE)" 0 'cache:*') | sed 's/^/  kunci dihapus: /'
+	@$(call compose,exec -T redis sh -c "redis-cli -a \"\$$REDIS_PASSWORD\" --no-auth-warning --scan --pattern \"cache:*\" | xargs -r redis-cli -a \"\$$REDIS_PASSWORD\" --no-auth-warning del") | sed 's/^/  kunci dihapus: /'
 
 ## test-e2e: uji alur end-to-end di atas Postgres & Redis compose (butuh `make up`)
 test-e2e:
@@ -289,7 +288,7 @@ backup-db:
 	@stamp=$$(date +%Y%m%d-%H%M%S); \
 	file="backups/$(POSTGRES_DB)-$(ENV)-$$stamp.sql.gz"; \
 	echo "==> Mencadangkan database ke $$file"; \
-	$(call compose,exec -T postgres pg_dump -U $(POSTGRES_USER) -d $(POSTGRES_DB) --clean --if-exists) \
+	$(call compose,exec -T postgres sh -c "pg_dump -U \$$POSTGRES_USER -d \$$POSTGRES_DB --clean --if-exists") \
 		| gzip > "$$file"; \
 	if [ ! -s "$$file" ]; then rm -f "$$file"; echo "  Cadangan gagal: berkas kosong."; exit 1; fi; \
 	echo "  Selesai: $$file ($$(du -h "$$file" | cut -f1))"
@@ -314,7 +313,7 @@ restore-db:
 	@read -p "  Ketik 'ya' untuk melanjutkan: " jawab; [ "$$jawab" = "ya" ] || { echo "  Dibatalkan."; exit 1; }
 	@echo "==> Memulihkan dari $(FILE)"
 	@gunzip -c "$(FILE)" | \
-		$(call compose,exec -T postgres psql -U $(POSTGRES_USER) -d $(POSTGRES_DB) --quiet)
+		$(call compose,exec -T postgres sh -c "psql -U \$$POSTGRES_USER -d \$$POSTGRES_DB --quiet")
 	@echo "  Pemulihan selesai."
 
 ## clean: hentikan service dan hapus volume (DATA IKUT TERHAPUS)
