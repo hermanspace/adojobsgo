@@ -66,7 +66,7 @@ GO_RUN = docker run $(GO_RUN_FLAGS) $(GO_IMAGE)
 
 .PHONY: help setup up down restart build rebuild ps logs logs-app \
         migrate migrate-down migrate-version seed admin-create shell psql redis-cli \
-        test test-e2e cache-clear fmt lint generate css ikon deploy releases rollback deploy-check backup-db restore-db \
+        test test-e2e cache-clear fmt lint generate css ikon deploy releases rollback backup deploy-check backup-db restore-db \
         clean
 
 ## help: tampilkan daftar perintah
@@ -284,6 +284,15 @@ backup-db:
 	$(call compose,exec -T postgres pg_dump -U $(POSTGRES_USER) -d $(POSTGRES_DB) --clean --if-exists) \
 		| gzip > "$$file"; \
 	if [ ! -s "$$file" ]; then rm -f "$$file"; echo "  Cadangan gagal: berkas kosong."; exit 1; fi; \
+	echo "  Selesai: $$file ($$(du -h "$$file" | cut -f1))"
+
+## backup: cadangan lengkap ke Mac — database (backup-db) + arsip volume foto
+backup: backup-db
+	@stamp=$$(date +%Y%m%d-%H%M%S); \
+	file="backups/uploads-$(ENV)-$$stamp.tgz"; \
+	echo "==> Mengarsipkan foto unggahan ke $$file"; \
+	$(call compose,run --rm --no-deps -T --entrypoint sh app -c "cd /app/storage/uploads && tar czf - .") > "$$file"; \
+	if [ ! -s "$$file" ]; then rm -f "$$file"; echo "  Arsip gagal: berkas kosong."; exit 1; fi; \
 	echo "  Selesai: $$file ($$(du -h "$$file" | cut -f1))"
 
 ## restore-db: pulihkan database dari berkas dump (FILE=backups/xxx.sql.gz)

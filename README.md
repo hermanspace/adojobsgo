@@ -909,7 +909,7 @@ make admin-create ENV=prod      # admin pertama dari ADMIN_PHONE/ADMIN_PASSWORD 
 make logs-app ENV=prod
 make releases ENV=prod          # daftar tag image yang tersedia
 make rollback ENV=prod TAG=20260924-1015
-make backup-db ENV=prod         # dump ke backups/ di Mac
+make backup ENV=prod            # database + arsip foto ditarik ke backups/ di Mac
 ```
 
 Cadangan terjadwal di server (database + volume foto), tiap hari 02:00:
@@ -918,8 +918,9 @@ Cadangan terjadwal di server (database + volume foto), tiap hari 02:00:
 ( crontab -l 2>/dev/null; echo '0 2 * * * cd /opt/adojobsid && docker compose -f docker-compose.yml -f docker-compose.prod.yml exec -T postgres pg_dump -U adojobs -d adojobs --clean --if-exists | gzip > /opt/adojobsid/backups/db-$(date +\%F).sql.gz && docker run --rm -v adojobsid_uploads:/u:ro -v /opt/adojobsid/backups:/b alpine tar czf /b/uploads-$(date +\%F).tgz -C /u . && find /opt/adojobsid/backups -mtime +14 -delete' ) | crontab -
 ```
 
-Salin folder `backups/` ke luar server secara berkala (rclone ke R2/Drive,
-atau `scp` ke Mac); cadangan di server yang sama bukan cadangan.
+Cron itu menyimpan cadangan di server yang sama, dan itu bukan cadangan
+sesungguhnya. Tarik salinannya ke luar server secara berkala dengan
+`make backup ENV=prod` dari Mac (atau rclone ke R2/Drive bila nanti ada).
 
 ## Status pengerjaan
 
