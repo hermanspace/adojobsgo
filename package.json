@@ -1,0 +1,12 @@
+{
+  "name": "adojobsid-web",
+  "private": true,
+  "description": "Build asset CSS untuk AdoJobs. Dijalankan di dalam Docker, bukan di host.",
+  "scripts": {
+    "build:css": "tailwindcss -i ./web/static/css/source.css -o ./web/static/css/app.css --minify",
+    "watch:css": "tailwindcss -i ./web/static/css/source.css -o ./web/static/css/app.css --watch"
+  },
+  "devDependencies": {
+    "tailwindcss": "^3.4.17"
+  }
+}

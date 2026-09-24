@@ -1,0 +1,288 @@
+package pages
+
+import (
+	"fmt"
+	"strconv"
+
+	"github.com/hermansyah/adojobsid/internal/model"
+	"github.com/hermansyah/adojobsid/internal/view"
+	"github.com/hermansyah/adojobsid/web/templates/components"
+	"github.com/hermansyah/adojobsid/web/templates/layout"
+)
+
+// ServiceDetail menampilkan satu listing jasa.
+// Tombol kontak WhatsApp dan form permintaan order menyusul di tahap 2.
+templ ServiceDetail(d view.ServiceDetailData) {
+	@layout.Base(d.Base) {
+		<article class="container-app py-4 md:py-8">
+			<a href="/cari" class="mb-4 inline-flex items-center gap-1 text-sm font-medium" style="color: var(--text-muted)">
+				@components.Icon("panah-kiri", "h-4 w-4")
+				Kembali ke pencarian
+			</a>
+			@components.FlashMessage(d.Flash)
+			<div class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px] lg:gap-10">
+				<div class="min-w-0">
+					@GaleriFoto(d.Service.Images, d.Service.Title)
+					<div class="mt-5">
+						<a
+							href={ templ.SafeURL("/cari?kategori=" + d.Service.Category.Slug) }
+							class="text-xs font-semibold uppercase tracking-widest"
+							style="color: var(--primary-solid)"
+						>
+							{ d.Service.Category.Name }
+						</a>
+						<h1 class="mt-2 font-display text-2xl font-extrabold leading-tight sm:text-3xl">
+							{ d.Service.Title }
+						</h1>
+						<p class="mt-3 font-display text-2xl font-extrabold">
+							{ view.HargaLabel(d.Service.PriceType, d.Service.PriceMin, d.Service.PriceMax) }
+							<span class="ml-1 align-middle text-sm font-medium" style="color: var(--text-muted)">
+								{ d.Service.PriceType.Label() }
+							</span>
+						</p>
+						@StatusListing(d)
+					</div>
+					<section class="mt-6" aria-labelledby="judul-deskripsi">
+						<h2 id="judul-deskripsi" class="mb-2 text-sm font-semibold uppercase tracking-widest" style="color: var(--text-muted)">
+							Deskripsi
+						</h2>
+						<div class="max-w-prose whitespace-pre-line text-base leading-relaxed" style="color: var(--text)">
+							{ d.Service.Description }
+						</div>
+					</section>
+					<p class="mt-6 text-xs" style="color: var(--text-subtle)">
+						Dipasang { view.WaktuRelatif(d.Service.CreatedAt) }
+					</p>
+				</div>
+				<aside class="lg:sticky lg:top-24 lg:self-start">
+					@KartuProvider(d.Service.Provider, d.IsOwner, d.IsAdmin, d.Service.ID)
+					if d.DapatDihubungi() && d.Service.Status == model.ServiceActive {
+						@PanelKontak(d)
+					} else if !d.LoggedIn() && d.Service.Status == model.ServiceActive {
+						<div class="surface-panel mt-3 p-4 text-center">
+							<p class="text-sm" style="color: var(--text-muted)">Masuk untuk menghubungi penyedia atau mengirim permintaan order.</p>
+							<a href={ templ.SafeURL("/masuk?next=/jasa/" + strconv.FormatInt(d.Service.ID, 10)) } class="btn btn-primary mt-3 w-full">Masuk</a>
+						</div>
+					}
+					<!-- Iklan diletakkan setelah panel kontak, bukan sebelumnya:
+					     tindakan menghubungi penyedia lebih berharga bagi kedua
+					     pihak daripada klik iklan, jadi ia tidak boleh terdorong
+					     turun oleh materi berbayar. -->
+					if slot := d.Base.SlotIklan("detail_samping"); slot != nil {
+						<div class="iklan-samping mt-3">
+							@components.Iklan(slot)
+						</div>
+					}
+				</aside>
+			</div>
+			if len(d.Serupa) > 0 {
+				<section class="mt-12" aria-labelledby="judul-serupa">
+					@components.SectionHeading("Jasa serupa", "Penyedia lain di kategori yang sama") {
+					}
+					@components.ListingGrid(d.Serupa)
+				</section>
+			}
+		</article>
+	}
+}
+
+// GaleriFoto: foto utama besar dengan deretan thumbnail.
+// Perpindahan foto memakai radio tersembunyi dan selector CSS — tanpa
+// JavaScript sama sekali, sehingga galeri tetap berfungsi bila skrip gagal
+// dimuat dan tidak menambah beban di jaringan lambat.
+templ GaleriFoto(images []model.ServiceImage, title string) {
+	if len(images) == 0 {
+		<div class="flex aspect-[4/3] w-full items-center justify-center rounded-lg" style="background-color: var(--surface); color: var(--text-subtle)">
+			@components.Icon("foto", "h-10 w-10")
+		</div>
+	} else {
+		<div class="galeri">
+			for i := range images {
+				<input
+					type="radio"
+					name="galeri-foto"
+					id={ fmt.Sprintf("galeri-%d", i) }
+					class="sr-only"
+					checked?={ i == 0 }
+				/>
+			}
+			<div class="galeri-panggung overflow-hidden rounded-lg" style="background-color: var(--surface); border: 1px solid var(--border)">
+				for i, img := range images {
+					<img
+						src={ img.ImageURL }
+						alt={ fmt.Sprintf("%s — foto %d", title, i+1) }
+						class="galeri-foto aspect-[4/3] w-full object-cover"
+						if i > 0 {
+							loading="lazy"
+						}
+					/>
+				}
+			</div>
+			if len(images) > 1 {
+				<div class="scroll-x mt-2">
+					for i, img := range images {
+						<label
+							for={ fmt.Sprintf("galeri-%d", i) }
+							class="galeri-thumb h-16 w-16 shrink-0 cursor-pointer overflow-hidden rounded-md"
+							aria-label={ fmt.Sprintf("Lihat foto %d", i+1) }
+						>
+							<!-- Strip thumbnail memakai varian kecil: memuat ulang gambar
+							     penuh hanya untuk petak 64px membuang kuota pengunjung. -->
+							<img src={ img.Tampil() } alt="" loading="lazy" class="h-full w-full object-cover"/>
+						</label>
+					}
+				</div>
+			}
+		</div>
+	}
+}
+
+// KartuProvider adalah ringkasan penyedia di sisi kanan halaman detail.
+templ KartuProvider(p model.ProviderDetail, isOwner bool, isAdmin bool, serviceID int64) {
+	<div class="surface-panel p-5">
+		<div class="flex items-start gap-3">
+			@components.Avatar(view.Deref(p.AvatarURL), p.FullName, "h-12 w-12 text-base")
+			<div class="min-w-0 flex-1">
+				<h2 class="flex items-center gap-1.5 text-base font-bold">
+					<a href={ templ.SafeURL(view.URLPenyedia(p.Slug)) } class="clamp-1 hover:underline">
+						{ p.FullName }
+					</a>
+					@components.BadgeTerverifikasi(p.IsVerified, false)
+				</h2>
+				<p class="mt-0.5 flex items-center gap-1 text-xs" style="color: var(--text-muted)">
+					@components.Icon("lokasi", "h-3.5 w-3.5")
+					{ view.Lokasi(p.Kecamatan, p.City) }
+				</p>
+				<div class="mt-1">
+					@components.Rating(p.AvgRating, p.TotalReviews, "text-xs")
+				</div>
+			</div>
+		</div>
+		if p.Bio != nil && *p.Bio != "" {
+			<p class="clamp-3 mt-4 text-sm" style="color: var(--text-muted)">{ *p.Bio }</p>
+		}
+		if area := view.AreaLayanan(p); area != "" {
+			<p class="mt-3 text-xs" style="color: var(--text-subtle)">
+				<span class="font-semibold" style="color: var(--text-muted)">Area layanan:</span>
+				{ area }
+			</p>
+		}
+		<a
+			href={ templ.SafeURL(view.URLPenyedia(p.Slug)) }
+			class="mt-4 inline-flex items-center gap-1 text-sm font-semibold"
+			style="color: var(--primary-solid)"
+		>
+			Lihat profil lengkap
+			@components.Icon("panah-kanan", "h-4 w-4")
+		</a>
+		if isOwner || isAdmin {
+			<div class="mt-5 flex flex-col gap-2">
+				<a href={ templ.SafeURL(fmt.Sprintf("/jasa/%d/ubah", serviceID)) } class="btn btn-secondary w-full">
+					@components.Icon("ubah", "h-4 w-4")
+					if isAdmin && !isOwner {
+						Ubah listing ini (admin)
+					} else {
+						Kelola listing ini
+					}
+				</a>
+			</div>
+		}
+	</div>
+}
+
+// StatusListing memberi tahu pemilik keadaan listingnya: menunggu tinjauan,
+// ditolak beserta alasannya, atau disembunyikan sendiri.
+templ StatusListing(d view.ServiceDetailData) {
+	if d.Service.Status != model.ServiceActive {
+		<div class="mt-3 rounded-md px-3 py-3 text-sm" style="background-color: var(--surface); border: 1px solid var(--border)">
+			<p class="flex items-center gap-2 font-semibold">
+				<span class={ view.StatusListingKelas(d.Service.Status) }>{ d.Service.Status.Label() }</span>
+			</p>
+			switch d.Service.Status {
+				case model.ServicePending:
+					<p class="mt-2" style="color: var(--text-muted)">
+						Listing sedang ditinjau pengelola dan belum muncul di pencarian.
+						Anda akan diberi tahu setelah keputusannya keluar.
+					</p>
+				case model.ServiceRejected:
+					if d.Service.RejectionReason != nil {
+						<p class="mt-2" style="color: var(--text-muted)">
+							Catatan pengelola: { *d.Service.RejectionReason }
+						</p>
+					}
+					<p class="mt-2" style="color: var(--text-muted)">
+						Perbaiki listing lalu simpan — perbaikannya otomatis diajukan ulang.
+					</p>
+				default:
+					<p class="mt-2" style="color: var(--text-muted)">
+						Listing ini Anda sembunyikan sendiri dan tidak muncul di pencarian.
+					</p>
+			}
+		</div>
+	}
+	if d.JarakKm != nil {
+		<p class="mt-3 inline-flex items-center gap-2 text-sm" style="color: var(--text-muted)">
+			@components.Icon("lokasi", "h-4 w-4")
+			<span>
+				Sekitar <span class="font-semibold tabular-nums" style="color: var(--text)">{ view.JarakLabel(d.JarakKm) }</span> dari { d.Base.Lokasi.Label }
+			</span>
+			if !d.Menjangkau() {
+				<span class="tanda">Di luar radius layanan</span>
+			}
+		</p>
+	}
+}
+
+// PanelKontak menyusun cara menghubungi penyedia dengan satu urutan niat:
+// mengirim permintaan order adalah tindakan yang paling bernilai, jadi ia
+// berada paling atas dan memakai gaya tombol utama; bertanya lewat pesan ada
+// di bawahnya sebagai langkah yang lebih ringan.
+//
+// Formulir ordernya dibungkus <details> supaya panelnya tidak terlalu panjang,
+// tetapi pemicunya berupa tombol utama seukuran penuh — bukan tautan teks
+// seperti sebelumnya, yang membuat tindakan terpenting justru paling samar.
+templ PanelKontak(d view.ServiceDetailData) {
+	<div class="surface-panel mt-3 p-4">
+		<details class="grup-order" open?={ d.Form.HasErr("notes") || d.Form.HasErr("scheduled_date") }>
+			<summary class="btn btn-primary btn-lg w-full cursor-pointer list-none">
+				@components.Icon("tambah", "h-4 w-4")
+				Kirim permintaan order
+			</summary>
+			<form action={ templ.SafeURL(fmt.Sprintf("/jasa/%d/order", d.Service.ID)) } method="post" class="mt-3">
+				@components.Field("notes", "Pekerjaan yang dibutuhkan", "Minimal 10 karakter.", d.Form.Err("notes")) {
+					<textarea
+						id="notes"
+						name="notes"
+						rows="4"
+						class="input input-textarea"
+						placeholder="Contoh: Cuci 2 unit AC 1 PK di rumah, lantai dua."
+						required
+					></textarea>
+				}
+				@components.Field("scheduled_date", "Tanggal diinginkan", "Opsional.", d.Form.Err("scheduled_date")) {
+					<input id="scheduled_date" name="scheduled_date" type="date" class="input"/>
+				}
+				<button type="submit" class="btn btn-primary w-full">Kirim permintaan</button>
+			</form>
+		</details>
+		<form action={ templ.SafeURL(fmt.Sprintf("/jasa/%d/pesan", d.Service.ID)) } method="post" class="mt-2">
+			<button type="submit" class="btn btn-secondary w-full">
+				@components.Icon("pesanan", "h-4 w-4")
+				Kirim pesan dulu
+			</button>
+		</form>
+		if d.Base.Situs.WhatsappAktif && d.Service.Provider.WhatsappNumber != "" {
+			<a
+				href={ templ.SafeURL(view.TautanWhatsapp(d.Service.Provider.WhatsappNumber, d.Service.Title)) }
+				target="_blank"
+				rel="noopener"
+				class="btn btn-whatsapp mt-2 w-full"
+			>
+				Hubungi lewat WhatsApp
+			</a>
+		}
+		<p class="mt-3 text-2xs" style="color: var(--text-subtle)">
+			Permintaan dan pembahasannya berlanjut di halaman Pesan.
+		</p>
+	</div>
+}

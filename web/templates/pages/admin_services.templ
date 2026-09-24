@@ -1,0 +1,262 @@
+package pages
+
+import (
+	"fmt"
+	"strconv"
+
+	"github.com/hermansyah/adojobsid/internal/model"
+	"github.com/hermansyah/adojobsid/internal/view"
+	"github.com/hermansyah/adojobsid/web/templates/components"
+	"github.com/hermansyah/adojobsid/web/templates/layout"
+)
+
+// AdminServices adalah halaman kelola seluruh listing jasa lintas penyedia.
+templ AdminServices(d view.AdminServicesData) {
+	@layout.AdminBase(d.AdminBase) {
+		<form
+			id="filter-jasa"
+			action="/admin/jasa"
+			method="get"
+			class="surface-panel mb-4 flex flex-col gap-3 p-4 lg:flex-row lg:items-end"
+			hx-get="/admin/jasa/tabel"
+			hx-target="#panel-jasa"
+			hx-swap="innerHTML"
+			hx-push-url="true"
+			hx-trigger="submit, input from:#cari-jasa delay:400ms, change from:select, change from:input[type=checkbox]"
+			hx-indicator="#indikator-jasa"
+		>
+			<div class="flex-1">
+				<label for="cari-jasa" class="field-label">Cari</label>
+				<input
+					id="cari-jasa"
+					type="search"
+					name="q"
+					value={ d.Filter.Query }
+					class="input !min-h-0 h-10 text-sm"
+					placeholder="Judul listing, nama penyedia, atau kategori"
+					autocomplete="off"
+				/>
+			</div>
+			<div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
+				<div>
+					<label for="filter-kategori" class="field-label">Kategori</label>
+					<select id="filter-kategori" name="kategori" class="input !min-h-0 h-10 text-sm">
+						<option value="">Semua kategori</option>
+						for _, k := range d.Kategori {
+							if d.KategoriTerpilih(k.ID) {
+								<option value={ strconv.FormatInt(k.ID, 10) } selected>{ k.Name }</option>
+							} else {
+								<option value={ strconv.FormatInt(k.ID, 10) }>{ k.Name }</option>
+							}
+						}
+					</select>
+				</div>
+				@pilihFilter("status", "Status", d.Filter.Status, []opsi{
+					{"", "Semua"}, {"active", "Aktif"}, {"inactive", "Nonaktif"},
+				})
+				@pilihFilter("sorot", "Sorotan", d.Filter.Featured, []opsi{
+					{"", "Semua"}, {"ya", "Sedang disorot"}, {"tidak", "Tidak disorot"},
+				})
+				@pilihFilter("urut", "Urutkan", d.Filter.Sort, []opsi{
+					{"terbaru", "Terbaru"}, {"terlama", "Terlama"}, {"termahal", "Harga tertinggi"}, {"penyedia", "Nama penyedia"},
+				})
+			</div>
+			<label class="flex shrink-0 items-center gap-2 pb-2 text-sm font-medium lg:pb-3">
+				<input
+					type="checkbox"
+					name="tanpa_foto"
+					value="1"
+					class="h-4 w-4 rounded-xs"
+					checked?={ d.Filter.TanpaFoto }
+				/>
+				<span class="whitespace-nowrap">Tanpa foto</span>
+			</label>
+			<noscript><button type="submit" class="btn btn-primary !min-h-0 h-10">Terapkan</button></noscript>
+		</form>
+		<div id="panel-jasa">
+			@AdminServicesTabel(d)
+		</div>
+	}
+}
+
+// AdminServicesTabel adalah fragmen yang ditukar HTMX.
+templ AdminServicesTabel(d view.AdminServicesData) {
+	<div class="mb-3 flex items-center justify-between gap-3">
+		<p class="text-sm font-medium" style="color: var(--text-muted)">{ jumlahJasa(d.Total) }</p>
+		<span id="indikator-jasa">
+			@components.Spinner("")
+		</span>
+	</div>
+	if len(d.Items) == 0 {
+		@components.EmptyState("Tidak ada listing yang cocok", "Ubah kata kunci atau hapus filter yang aktif.") {
+			<a href="/admin/jasa" class="btn btn-secondary mt-4">Hapus filter</a>
+		}
+	} else {
+		<div class="surface-panel overflow-x-auto">
+			<table class="tabel">
+				<thead>
+					<tr>
+						<th scope="col">Listing</th>
+						<th scope="col" class="hidden md:table-cell">Penyedia</th>
+						<th scope="col" class="hidden lg:table-cell">Harga</th>
+						<th scope="col">Status</th>
+						<th scope="col"><span class="sr-only">Tindakan</span></th>
+					</tr>
+				</thead>
+				<tbody>
+					for _, s := range d.Items {
+						@barisJasa(d, s)
+					}
+				</tbody>
+			</table>
+		</div>
+		@paginasiJasa(d)
+	}
+}
+
+templ barisJasa(d view.AdminServicesData, s model.ServiceCard) {
+	<tr class={ templ.KV("baris-nonaktif", s.Status == model.ServiceInactive) }>
+		<td>
+			<div class="flex items-center gap-3">
+				<span class="block h-10 w-10 shrink-0 overflow-hidden rounded-md" style="background-color: var(--surface)">
+					if s.CoverImage != nil && *s.CoverImage != "" {
+						<img src={ *s.CoverImage } alt="" loading="lazy" class="h-full w-full object-cover"/>
+					} else {
+						<span class="flex h-full w-full items-center justify-center" style="color: var(--text-subtle)">
+							@components.Icon("foto", "h-4 w-4")
+						</span>
+					}
+				</span>
+				<div class="min-w-0">
+					<a
+						href={ templ.SafeURL(fmt.Sprintf("/jasa/%d", s.ID)) }
+						target="_blank"
+						rel="noopener"
+						class="clamp-1 font-semibold hover:underline"
+					>{ s.Title }</a>
+					<span class="block text-xs" style="color: var(--text-muted)">
+						{ s.CategoryName } · { view.WaktuRelatif(s.CreatedAt) }
+					</span>
+					<span class="block text-xs md:hidden" style="color: var(--text-subtle)">{ s.ProviderName }</span>
+				</div>
+			</div>
+		</td>
+		<td class="hidden md:table-cell">
+			<span class="clamp-1 text-sm">{ s.ProviderName }</span>
+			<span class="block text-xs" style="color: var(--text-muted)">
+				{ view.Lokasi(s.ProviderKec, s.ProviderCity) }
+			</span>
+		</td>
+		<td class="hidden lg:table-cell">
+			<span class="whitespace-nowrap text-sm tabular-nums">
+				{ view.HargaLabel(s.PriceType, s.PriceMin, s.PriceMax) }
+			</span>
+		</td>
+		<td>
+			<div class="flex flex-wrap items-center gap-1">
+				if s.Status == model.ServiceActive {
+					<span class="tanda tanda-baik">Aktif</span>
+				} else {
+					<span class="tanda">Nonaktif</span>
+				}
+				if s.IsFeatured() {
+					<span class="tanda tanda-sorot">Disorot</span>
+				}
+				if s.CoverImage == nil {
+					<span class="tanda">Tanpa foto</span>
+				}
+			</div>
+		</td>
+		<td>
+			<div class="flex flex-wrap items-start justify-end gap-2">
+				<details>
+					<summary class="btn btn-secondary btn-sm cursor-pointer list-none">
+						if s.IsFeatured() {
+							Ubah sorotan
+						} else {
+							Sorot
+						}
+					</summary>
+					<div class="surface-panel mt-1 w-44 p-2">
+						<p class="px-1 pb-1 text-2xs font-semibold uppercase tracking-wide" style="color: var(--text-muted)">
+							Lama tayang
+						</p>
+						for _, dur := range d.Durasi {
+							<button
+								type="button"
+								class="btn btn-ghost btn-sm w-full !justify-start"
+								hx-post={ fmt.Sprintf("/admin/jasa/%d/sorot?hari=%d", s.ID, dur.Hari) }
+								hx-target="#panel-jasa"
+								hx-swap="innerHTML"
+								hx-include="#filter-jasa"
+							>{ dur.Label }</button>
+						}
+						if s.IsFeatured() {
+							<button
+								type="button"
+								class="btn btn-ghost btn-sm w-full !justify-start"
+								style="color: var(--danger)"
+								hx-post={ fmt.Sprintf("/admin/jasa/%d/sorot?hari=0", s.ID) }
+								hx-target="#panel-jasa"
+								hx-swap="innerHTML"
+								hx-include="#filter-jasa"
+							>Cabut sorotan</button>
+						}
+					</div>
+				</details>
+				if s.Status == model.ServiceActive {
+					<button
+						type="button"
+						class="btn btn-danger btn-sm"
+						hx-post={ fmt.Sprintf("/admin/jasa/%d/status?status=inactive", s.ID) }
+						hx-target="#panel-jasa"
+						hx-swap="innerHTML"
+						hx-include="#filter-jasa"
+					>Nonaktifkan</button>
+				} else {
+					<button
+						type="button"
+						class="btn btn-secondary btn-sm"
+						hx-post={ fmt.Sprintf("/admin/jasa/%d/status?status=active", s.ID) }
+						hx-target="#panel-jasa"
+						hx-swap="innerHTML"
+						hx-include="#filter-jasa"
+					>Aktifkan</button>
+				}
+			</div>
+		</td>
+	</tr>
+}
+
+templ paginasiJasa(d view.AdminServicesData) {
+	if d.TotalPages > 1 {
+		<nav class="mt-4 flex items-center justify-between gap-3" aria-label="Paginasi listing">
+			if d.AdaSebelum() {
+				<a href={ templ.SafeURL(d.URLHalaman(d.HalamanSebelum())) } class="btn btn-secondary btn-sm">
+					@components.Icon("panah-kiri", "h-4 w-4")
+					Sebelumnya
+				</a>
+			} else {
+				<span></span>
+			}
+			<span class="text-xs tabular-nums" style="color: var(--text-muted)">
+				Halaman { strconv.Itoa(d.Page) } dari { strconv.Itoa(d.TotalPages) }
+			</span>
+			if d.AdaSesudah() {
+				<a href={ templ.SafeURL(d.URLHalaman(d.HalamanSesudah())) } class="btn btn-secondary btn-sm">
+					Berikutnya
+					@components.Icon("panah-kanan", "h-4 w-4")
+				</a>
+			} else {
+				<span></span>
+			}
+		</nav>
+	}
+}
+
+func jumlahJasa(total int) string {
+	if total == 0 {
+		return "Tidak ada listing"
+	}
+	return fmt.Sprintf("%d listing", total)
+}

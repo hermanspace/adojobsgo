@@ -1,0 +1,37 @@
+# Penyesuaian khusus lingkungan lokal.
+# Docker Compose memuat berkas ini otomatis saat dijalankan tanpa -f tambahan.
+
+services:
+  app:
+    environment:
+      APP_ENV: local
+      APP_DEBUG: "true"
+      SESSION_COOKIE_SECURE: "false"
+    # Di lokal port dibuka ke host supaya bisa diakses langsung dari peramban.
+    ports:
+      - "${APP_PORT:-3000}:3000"
+
+  postgres:
+    # Dibuka ke host agar bisa dihubungkan dari GUI database di Mac bila perlu.
+    ports:
+      - "${POSTGRES_PORT_HOST:-5433}:5432"
+
+  redis:
+    ports:
+      - "${REDIS_PORT_HOST:-6380}:6379"
+
+  # Pembangun CSS dengan mode pantau. Ikut profil "tools" supaya
+  # `make up` biasa tidak menjalankannya.
+  tailwind:
+    image: node:22-alpine
+    profiles: ["tools"]
+    working_dir: /app
+    command: >
+      sh -c "npm install --no-audit --no-fund --loglevel=error &&
+             npx tailwindcss -i ./web/static/css/source.css -o ./web/static/css/app.css --watch"
+    volumes:
+      - .:/app
+      - node_modules:/app/node_modules
+
+volumes:
+  node_modules:

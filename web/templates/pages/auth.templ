@@ -1,0 +1,154 @@
+package pages
+
+import (
+	"github.com/hermansyah/adojobsid/internal/view"
+	"github.com/hermansyah/adojobsid/web/templates/components"
+	"github.com/hermansyah/adojobsid/web/templates/layout"
+)
+
+// Masuk adalah halaman login. Identitas utama adalah nomor HP, karena itu
+// yang paling dikenal pengguna di pasar ini; email tetap diterima.
+templ Masuk(d view.AuthData) {
+	@layout.Base(d.Base) {
+		@kartuAuth("Masuk ke akun Anda", "Belum punya akun?", "Daftar gratis", "/daftar") {
+			@components.FlashMessage(d.Flash)
+			<form action="/masuk" method="post" class="mt-6" novalidate>
+				<input type="hidden" name="next" value={ d.Next }/>
+				@components.Field("identifier", "Nomor HP atau email", "", d.Form.Err("identifier")) {
+					<input
+						id="identifier"
+						name="identifier"
+						type="text"
+						inputmode="tel"
+						autocomplete="username"
+						class="input"
+						placeholder="0812xxxxxxx"
+						value={ d.Form.Value("identifier") }
+						aria-invalid={ ditekan(d.Form.HasErr("identifier")) }
+						required
+					/>
+				}
+				@components.Field("password", "Kata sandi", "", d.Form.Err("password")) {
+					<div x-data="sandi" class="relative">
+						<input
+							id="password"
+							name="password"
+							x-bind:type="tipe"
+							type="password"
+							autocomplete="current-password"
+							class="input pr-12"
+							placeholder="••••••••"
+							aria-invalid={ ditekan(d.Form.HasErr("password")) }
+							required
+						/>
+						<button
+							type="button"
+							x-on:click="toggle"
+							class="absolute right-2 top-1/2 -translate-y-1/2 rounded px-2 py-1 text-xs font-semibold"
+							style="color: var(--text-muted)"
+							x-text="label"
+						>Lihat</button>
+					</div>
+				}
+				<button type="submit" class="btn btn-primary btn-lg mt-2 w-full">Masuk</button>
+			</form>
+		}
+	}
+}
+
+// Daftar adalah halaman registrasi. Hanya empat isian wajib supaya
+// hambatan mendaftar sekecil mungkin; sisanya dilengkapi belakangan.
+templ Daftar(d view.AuthData) {
+	@layout.Base(d.Base) {
+		@kartuAuth("Buat akun Adojobs", "Sudah punya akun?", "Masuk di sini", "/masuk") {
+			@components.FlashMessage(d.Flash)
+			<form action="/daftar" method="post" class="mt-6" novalidate>
+				@components.Field("full_name", "Nama lengkap", "", d.Form.Err("full_name")) {
+					<input
+						id="full_name"
+						name="full_name"
+						type="text"
+						autocomplete="name"
+						class="input"
+						placeholder="Nama sesuai KTP atau nama usaha"
+						value={ d.Form.Value("full_name") }
+						aria-invalid={ ditekan(d.Form.HasErr("full_name")) }
+						required
+					/>
+				}
+				@components.Field("phone", "Nomor HP", "Dipakai untuk masuk. Boleh ditulis 0812… atau +62812…", d.Form.Err("phone")) {
+					<input
+						id="phone"
+						name="phone"
+						type="tel"
+						inputmode="tel"
+						autocomplete="tel"
+						class="input"
+						placeholder="0812xxxxxxx"
+						value={ d.Form.Value("phone") }
+						aria-invalid={ ditekan(d.Form.HasErr("phone")) }
+						required
+					/>
+				}
+				@components.Field("kecamatan", "Kecamatan", "Membantu pelanggan menemukan penyedia terdekat.", d.Form.Err("kecamatan")) {
+					<select id="kecamatan" name="kecamatan" class="input">
+						<option value="">Pilih kecamatan</option>
+						for _, k := range kecamatanBengkalis() {
+							if d.Form.Selected("kecamatan", k) {
+								<option value={ k } selected>{ k }</option>
+							} else {
+								<option value={ k }>{ k }</option>
+							}
+						}
+					</select>
+				}
+				@components.Field("password", "Kata sandi", "Minimal 8 karakter.", d.Form.Err("password")) {
+					<input
+						id="password"
+						name="password"
+						type="password"
+						autocomplete="new-password"
+						class="input"
+						placeholder="••••••••"
+						aria-invalid={ ditekan(d.Form.HasErr("password")) }
+						required
+						minlength="8"
+					/>
+				}
+				@components.Field("password_confirm", "Ulangi kata sandi", "", d.Form.Err("password_confirm")) {
+					<input
+						id="password_confirm"
+						name="password_confirm"
+						type="password"
+						autocomplete="new-password"
+						class="input"
+						placeholder="••••••••"
+						aria-invalid={ ditekan(d.Form.HasErr("password_confirm")) }
+						required
+					/>
+				}
+				<button type="submit" class="btn btn-primary btn-lg mt-2 w-full">Buat akun</button>
+				<p class="mt-4 text-center text-xs" style="color: var(--text-subtle)">
+					Dengan mendaftar Anda setuju jasa yang dipasang adalah benar milik Anda.
+				</p>
+			</form>
+		}
+	}
+}
+
+// kartuAuth adalah kerangka bersama halaman masuk dan daftar.
+// Di mobile kartu memenuhi lebar layar tanpa border; sejak tablet jadi kartu terpusat.
+templ kartuAuth(judul string, tanyaan string, aksiLabel string, aksiHref string) {
+	<div class="container-app flex justify-center py-6 md:py-12">
+		<div class="w-full max-w-md">
+			<div class="px-0 sm:surface-panel sm:p-8">
+				<h1 class="font-display text-2xl font-extrabold sm:text-3xl">{ judul }</h1>
+				<p class="mt-1 text-sm" style="color: var(--text-muted)">
+					{ tanyaan }
+					<a href={ templ.SafeURL(aksiHref) } class="font-semibold" style="color: var(--primary-solid)">{ aksiLabel }</a>
+				</p>
+				{ children... }
+			</div>
+		</div>
+	</div>
+}

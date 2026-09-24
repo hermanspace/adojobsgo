@@ -1,0 +1,378 @@
+package pages
+
+import (
+	"fmt"
+	"strconv"
+
+	"github.com/hermansyah/adojobsid/internal/model"
+	"github.com/hermansyah/adojobsid/internal/view"
+	"github.com/hermansyah/adojobsid/web/templates/components"
+	"github.com/hermansyah/adojobsid/web/templates/layout"
+)
+
+// DaftarPesan menampilkan seluruh percakapan milik pengguna.
+templ DaftarPesan(d view.PesanData) {
+	@layout.Base(d.Base) {
+		<div class="container-app py-4 md:py-8">
+			<h1 class="mb-4 font-display text-2xl font-extrabold">Pesan</h1>
+			@components.FlashMessage(d.Flash)
+			if len(d.Items) == 0 {
+				@components.EmptyState(
+					"Belum ada percakapan",
+					"Percakapan muncul di sini setelah Anda menghubungi penyedia jasa, atau setelah ada pelanggan yang menghubungi Anda.",
+				) {
+					<a href="/cari" class="btn btn-primary mt-4">Cari jasa</a>
+				}
+			} else {
+				<ul class="surface-panel divide-y" style="border-color: var(--border)">
+					for _, c := range d.Items {
+						<li>
+							<a
+								href={ templ.SafeURL(fmt.Sprintf("/pesan/%d", c.ID)) }
+								class="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-surface"
+							>
+								<span class="relative shrink-0">
+									@components.Avatar(view.Deref(c.LawanAvatar), c.LawanNama, "h-11 w-11 text-sm")
+									if c.BelumDibaca > 0 {
+										<span
+											class="absolute -right-1 -top-1 inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full px-1 text-2xs font-bold"
+											style="background-image: linear-gradient(103deg, var(--primary-from), var(--primary-to)); color: var(--primary-contrast)"
+										>{ strconv.Itoa(c.BelumDibaca) }</span>
+									}
+								</span>
+								<span class="min-w-0 flex-1">
+									<span class="flex items-baseline justify-between gap-2">
+										<span class="clamp-1 text-sm font-bold">{ c.LawanNama }</span>
+										if c.LastMessageAt != nil {
+											<span class="shrink-0 text-2xs" style="color: var(--text-subtle)">
+												{ view.WaktuRelatif(*c.LastMessageAt) }
+											</span>
+										}
+									</span>
+									<span class="clamp-1 block text-xs" style="color: var(--text-muted)">{ c.ServiceTitle }</span>
+									if c.PesanTerakhir != nil {
+										<span class="clamp-1 mt-0.5 block text-sm" style="color: var(--text-muted)">
+											{ *c.PesanTerakhir }
+										</span>
+									}
+								</span>
+								if c.OrderStatus != nil {
+									<span class={ view.StatusPesananKelas(*c.OrderStatus) }>
+										{ model.OrderStatus(*c.OrderStatus).Label() }
+									</span>
+								}
+							</a>
+						</li>
+					}
+				</ul>
+			}
+		</div>
+	}
+}
+
+// RuangPesan adalah satu ruang obrolan.
+// Pesan baru ditarik berkala lewat HTMX; tidak ada koneksi terbuka yang perlu
+// disetel khusus di proxy server.
+templ RuangPesan(d view.RuangPesanData) {
+	@layout.Base(d.Base) {
+		<div class="container-app flex flex-col py-4 md:py-6" style="min-height: calc(100vh - 8rem)">
+			<header class="mb-3 flex items-center gap-3">
+				<a href="/pesan" class="btn btn-ghost !min-h-0 h-9 w-9 shrink-0 !px-0" aria-label="Kembali ke daftar pesan">
+					@components.Icon("panah-kiri", "h-5 w-5")
+				</a>
+				@components.Avatar(view.Deref(d.Conv.LawanAvatar), d.Conv.LawanNama, "h-10 w-10 text-xs")
+				<div class="min-w-0 flex-1">
+					<h1 class="clamp-1 text-base font-bold">{ d.Conv.LawanNama }</h1>
+					<a
+						href={ templ.SafeURL(fmt.Sprintf("/jasa/%d", d.Conv.ServiceID)) }
+						class="clamp-1 block text-xs hover:underline"
+						style="color: var(--text-muted)"
+					>{ d.Conv.ServiceTitle }</a>
+				</div>
+			</header>
+			@components.FlashMessage(d.Flash)
+			if d.Order != nil {
+				@PanelPesanan(d)
+			}
+			<!-- Riwayat pesan. Polling hanya meminta pesan yang lebih baru dari
+			     yang sudah tampil, sehingga muatannya tetap kecil. -->
+			<div
+				id="gulung-pesan"
+				class="surface-panel flex-1 overflow-y-auto p-3"
+				style="max-height: 60vh"
+			>
+				<div
+					id="daftar-pesan"
+					class="flex flex-col gap-2"
+					hx-get={ fmt.Sprintf("/pesan/%d/baru", d.Conv.ID) }
+					hx-trigger="every 3s"
+					hx-swap="beforeend"
+					data-percakapan={ strconv.FormatInt(d.Conv.ID, 10) }
+				>
+					@GelembungPesan(d.Messages, d.UserID)
+				</div>
+			</div>
+			<form
+				class="mt-3 flex items-end gap-2"
+				hx-post={ fmt.Sprintf("/pesan/%d", d.Conv.ID) }
+				hx-target="#daftar-pesan"
+				hx-swap="beforeend"
+				data-reset-setelah-kirim
+			>
+				<label for="body" class="sr-only">Tulis pesan</label>
+				<textarea
+					id="body"
+					name="body"
+					rows="2"
+					class="input flex-1 !min-h-0"
+					style="min-height: 44px"
+					placeholder="Tulis pesan…"
+					maxlength="2000"
+					required
+				></textarea>
+				<button type="submit" class="btn btn-primary shrink-0" aria-label="Kirim pesan">
+					@components.Icon("panah-kanan", "h-5 w-5")
+					<span class="hidden sm:inline">Kirim</span>
+				</button>
+			</form>
+		</div>
+	}
+}
+
+// GelembungPesan merender daftar gelembung pesan.
+// Dipakai sebagai halaman penuh maupun sebagai fragmen hasil polling.
+templ GelembungPesan(msgs []model.MessageRow, userID int64) {
+	for _, m := range msgs {
+		<div
+			class={ "flex", templ.KV("justify-end", m.SenderID == userID) }
+			data-pesan-id={ strconv.FormatInt(m.ID, 10) }
+		>
+			<div
+				class="max-w-[85%] rounded-lg px-3 py-2 sm:max-w-[70%]"
+				style={ gayaGelembung(m.SenderID == userID) }
+			>
+				<p class="whitespace-pre-line break-words text-sm">{ m.Body }</p>
+				<p class="mt-1 text-right text-2xs" style="opacity: .7">{ m.CreatedAt.Format("15:04") }</p>
+			</div>
+		</div>
+	}
+}
+
+// PanelPesanan menampilkan status pesanan dan tindakan yang tersedia
+// bagi masing-masing pihak.
+templ PanelPesanan(d view.RuangPesanData) {
+	<div class="surface-panel mb-3 p-4">
+		<div class="flex flex-wrap items-center justify-between gap-2">
+			<div>
+				<p class="text-2xs font-semibold uppercase tracking-wide" style="color: var(--text-muted)">
+					Pesanan #{ strconv.FormatInt(d.Order.ID, 10) }
+				</p>
+				<p class="mt-0.5 flex items-center gap-2">
+					<span class={ view.StatusPesananKelas(string(d.Order.Status)) }>{ d.Order.Status.Label() }</span>
+					if d.Order.ScheduledDate != nil {
+						<span class="text-xs" style="color: var(--text-muted)">
+							Jadwal: { d.Order.ScheduledDate.Format("2 Jan 2006") }
+						</span>
+					}
+				</p>
+			</div>
+			if d.DapatDiulas {
+				<!-- Ulasan hanya terbuka bagi pemesan, dan hanya setelah
+				     pesanan ditandai selesai. -->
+				<details class="w-full">
+					<summary class="cursor-pointer list-none text-sm font-semibold" style="color: var(--primary-solid)">
+						Beri ulasan untuk pekerjaan ini
+					</summary>
+					@FormUlasan(d)
+				</details>
+			} else if d.Ulasan != nil {
+				<div class="w-full rounded-md px-3 py-3" style="background-color: var(--surface)">
+					<p class="text-2xs font-semibold uppercase tracking-wide" style="color: var(--text-muted)">
+						Ulasan Anda
+					</p>
+					<div class="mt-1 flex gap-0.5">
+						for _, penuh := range view.BintangPenuh(d.Ulasan.Rating) {
+							<span style={ gayaBintang(penuh) }>
+								@components.Icon("bintang", "h-4 w-4")
+							</span>
+						}
+					</div>
+					if d.Ulasan.Comment != nil && *d.Ulasan.Comment != "" {
+						<p class="mt-2 whitespace-pre-line text-sm">{ *d.Ulasan.Comment }</p>
+					}
+				</div>
+			}
+			if len(d.TindakanOrder()) > 0 {
+				<div class="flex flex-wrap gap-2">
+					for _, t := range d.TindakanOrder() {
+						<form action={ templ.SafeURL(fmt.Sprintf("/pesanan/%d/status", d.Order.ID)) } method="post">
+							<input type="hidden" name="conversation_id" value={ strconv.FormatInt(d.Conv.ID, 10) }/>
+							<input type="hidden" name="status" value={ string(t) }/>
+							<button type="submit" class={ kelasTombolPesanan(t) }>{ view.LabelTindakan(t) }</button>
+						</form>
+					}
+				</div>
+			}
+		</div>
+	</div>
+}
+
+// Notifikasi menampilkan pemberitahuan terbaru.
+templ Notifikasi(d view.NotifikasiData) {
+	@layout.Base(d.Base) {
+		<div class="container-app py-4 md:py-8">
+			<h1 class="mb-4 font-display text-2xl font-extrabold">Notifikasi</h1>
+			if len(d.Items) == 0 {
+				@components.EmptyState("Belum ada notifikasi", "Pemberitahuan tentang pesan, pesanan, dan listing Anda muncul di sini.") {
+				}
+			} else {
+				<ul class="surface-panel divide-y" style="border-color: var(--border)">
+					for _, n := range d.Items {
+						@BarisNotifikasi(n)
+					}
+				</ul>
+			}
+		</div>
+	}
+}
+
+templ BarisNotifikasi(n model.Notification) {
+	{{ judul, keterangan, tautan := view.IsiNotifikasi(n) }}
+	<li>
+		if tautan != "" {
+			<a href={ templ.SafeURL(tautan) } class="flex items-start gap-3 px-4 py-3 transition-colors hover:bg-surface">
+				@isiNotifikasi(n, judul, keterangan)
+			</a>
+		} else {
+			<div class="flex items-start gap-3 px-4 py-3">
+				@isiNotifikasi(n, judul, keterangan)
+			</div>
+		}
+	</li>
+}
+
+templ isiNotifikasi(n model.Notification, judul string, keterangan string) {
+	<span
+		class="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md"
+		style={ gayaIkonNotif(n.ReadAt == nil) }
+	>
+		@components.Icon(ikonNotif(n.Type), "h-4 w-4")
+	</span>
+	<span class="min-w-0 flex-1">
+		<span class="flex items-baseline justify-between gap-2">
+			<span class="clamp-1 text-sm font-semibold">{ judul }</span>
+			<span class="shrink-0 text-2xs" style="color: var(--text-subtle)">{ view.WaktuRelatif(n.CreatedAt) }</span>
+		</span>
+		if keterangan != "" {
+			<span class="clamp-2 block text-xs" style="color: var(--text-muted)">{ keterangan }</span>
+		}
+	</span>
+}
+
+// BadgeBelumDibaca adalah fragmen kecil yang disegarkan berkala oleh HTMX.
+templ BadgeBelumDibaca(jumlah int) {
+	if jumlah > 0 {
+		<span
+			class="absolute -right-2 -top-1 inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full px-1 text-[10px] font-bold"
+			style="background-image: linear-gradient(103deg, var(--primary-from), var(--primary-to)); color: var(--primary-contrast)"
+			aria-label={ strconv.Itoa(jumlah) + " pesan belum dibaca" }
+		>{ strconv.Itoa(jumlah) }</span>
+	}
+}
+
+func gayaGelembung(milikSendiri bool) string {
+	if milikSendiri {
+		return "background-image: linear-gradient(103deg, var(--primary-from), var(--primary-to)); color: var(--primary-contrast)"
+	}
+	return "background-color: var(--surface); color: var(--text)"
+}
+
+func kelasTombolPesanan(s model.OrderStatus) string {
+	switch s {
+	case model.OrderRejected, model.OrderCancelled:
+		return "btn btn-danger btn-sm"
+	case model.OrderCompleted:
+		return "btn btn-primary btn-sm"
+	default:
+		return "btn btn-secondary btn-sm"
+	}
+}
+
+func ikonNotif(jenis string) string {
+	switch jenis {
+	case "pesan_baru":
+		return "pesanan"
+	case "order_baru", "order_diperbarui":
+		return "tambah"
+	case "listing_disetujui":
+		return "sukses"
+	case "listing_ditolak":
+		return "peringatan"
+	}
+	return "peringatan"
+}
+
+func gayaIkonNotif(belumDibaca bool) string {
+	if belumDibaca {
+		return "background-color: var(--primary-soft); color: var(--primary-solid)"
+	}
+	return "background-color: var(--surface); color: var(--text-muted)"
+}
+
+// FormUlasan memakai radio bintang: penilaian tersimpan tanpa JavaScript
+// sama sekali, sehingga tetap berfungsi walau skrip gagal dimuat.
+templ FormUlasan(d view.RuangPesanData) {
+	<form
+		action={ templ.SafeURL(fmt.Sprintf("/pesanan/%d/ulasan", d.Order.ID)) }
+		method="post"
+		class="mt-3 w-full"
+		novalidate
+	>
+		<input type="hidden" name="conversation_id" value={ strconv.FormatInt(d.Conv.ID, 10) }/>
+		<fieldset class="mb-3">
+			<legend class="field-label">Seberapa puas Anda?</legend>
+			<!-- Input diletakkan sebagai saudara label, bukan di dalamnya, dan
+			     urutannya dibalik secara visual. Dengan begitu "bintang terpilih
+			     beserta semua bintang sebelumnya" cukup diselesaikan kombinator
+			     saudara biasa (~) — tanpa :has(), yang invalidasinya tidak
+			     tepercaya untuk kasus ini. -->
+			<div class="bintang-baris">
+				for _, b := range []int{5, 4, 3, 2, 1} {
+					<input
+						type="radio"
+						id={ "rating-" + strconv.Itoa(b) }
+						name="rating"
+						value={ strconv.Itoa(b) }
+						class="sr-only"
+						required
+					/>
+					<label
+						for={ "rating-" + strconv.Itoa(b) }
+						class="bintang-pilih cursor-pointer"
+						title={ strconv.Itoa(b) + " bintang" }
+					>
+						<span class="sr-only">{ strconv.Itoa(b) } bintang</span>
+						@components.Icon("bintang", "h-7 w-7")
+					</label>
+				}
+			</div>
+			if d.Form.HasErr("rating") {
+				<p class="field-error">
+					@components.Icon("peringatan", "h-3.5 w-3.5 shrink-0 mt-0.5")
+					<span>{ d.Form.Err("rating") }</span>
+				</p>
+			}
+		</fieldset>
+		@components.Field("comment", "Ceritakan pengalamannya", "Opsional, tapi sangat membantu pengguna lain.", d.Form.Err("comment")) {
+			<textarea
+				id="comment"
+				name="comment"
+				rows="3"
+				class="input input-textarea"
+				placeholder="Contoh: Datang tepat waktu, kerjanya rapi, harga sesuai kesepakatan."
+				maxlength="1000"
+			></textarea>
+		}
+		<button type="submit" class="btn btn-primary w-full">Kirim ulasan</button>
+	</form>
+}

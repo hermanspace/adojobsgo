@@ -1,0 +1,61 @@
+package components
+
+import "github.com/hermansyah/adojobsid/internal/model"
+
+// Iklan menayangkan satu slot iklan.
+//
+// Tiga hal dijaga di sini. Pertama, iklan selalu diberi label "Iklan" yang
+// terbaca — pengunjung berhak tahu mana konten berbayar dan mana hasil
+// pencarian. Kedua, tampilannya sengaja tidak menyerupai kartu jasa: tanpa
+// tint sorotan, tanpa proporsi yang sama, supaya tidak tertukar dengan
+// listing. Ketiga, tautannya memakai rel="sponsored" agar mesin pencari tidak
+// memperlakukannya sebagai rekomendasi editorial.
+//
+// Slot yang belum layak tayang dikirim sebagai nil dan tidak merender apa pun,
+// sehingga halaman tidak pernah menyisakan kotak kosong.
+templ Iklan(slot *model.SlotIklan) {
+	if slot != nil {
+		<aside class="iklan" aria-label="Iklan">
+			<span class="iklan-label">Iklan</span>
+			if slot.DapatDiklik() {
+				<a
+					href={ templ.SafeURL(slot.TautanURL) }
+					target="_blank"
+					rel="sponsored noopener"
+					class="iklan-isi"
+				>
+					@isiIklan(slot)
+				</a>
+			} else {
+				<span class="iklan-isi">
+					@isiIklan(slot)
+				</span>
+			}
+		</aside>
+	}
+}
+
+templ isiIklan(slot *model.SlotIklan) {
+	if slot.GambarURL != "" {
+		<img
+			src={ slot.GambarURL }
+			alt={ altIklan(slot) }
+			loading="lazy"
+			decoding="async"
+			class="iklan-gambar"
+		/>
+	}
+	if slot.Teks != "" {
+		<span class="iklan-teks">{ slot.Teks }</span>
+	}
+}
+
+// altIklan memberi teks alternatif yang berarti. Bila pemasang sudah menulis
+// teks, itu yang dipakai; kalau tidak, gambarnya dijelaskan seadanya daripada
+// dibiarkan tanpa keterangan sama sekali.
+func altIklan(slot *model.SlotIklan) string {
+	if slot.Teks != "" {
+		return slot.Teks
+	}
+	return "Materi iklan"
+}

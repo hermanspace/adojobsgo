@@ -1,0 +1,188 @@
+package components
+
+import (
+	"fmt"
+	"strconv"
+
+	"github.com/hermansyah/adojobsid/internal/view"
+)
+
+// Avatar menampilkan foto profil, atau inisial nama bila foto belum diunggah.
+// Inisial memakai latar aksen tipis, bukan blok warna penuh.
+templ Avatar(url string, name string, size string) {
+	if url != "" {
+		<img
+			src={ url }
+			alt={ "Foto " + name }
+			loading="lazy"
+			class={ "shrink-0 rounded-full object-cover", size }
+			style="background-color: var(--surface)"
+		/>
+	} else {
+		<span
+			class={ "inline-flex shrink-0 items-center justify-center rounded-full font-display font-bold", size }
+			style="background-color: var(--primary-soft); color: var(--primary-solid)"
+			aria-hidden="true"
+		>
+			{ view.Initials(name) }
+		</span>
+	}
+}
+
+// Rating menampilkan satu bintang dan angka rata-rata. Provider tanpa ulasan
+// ditandai "Baru" — lebih jujur daripada menampilkan rating 0.0.
+templ Rating(avg float64, total int, class string) {
+	if total > 0 {
+		<span class={ "inline-flex items-center gap-1", class }>
+			@Icon("bintang", "h-3.5 w-3.5")
+			<span class="font-semibold tabular-nums" style="color: var(--text)">{ view.RatingLabel(avg) }</span>
+			<span style="color: var(--text-subtle)">({ strconv.Itoa(total) })</span>
+		</span>
+	} else {
+		<span class={ "inline-flex items-center", class }>
+			<span class="font-medium" style="color: var(--text-subtle)">Penyedia baru</span>
+		</span>
+	}
+}
+
+// RatingRingkas dipakai di kartu listing yang lebarnya sempit (dua kolom di
+// layar 375px). Provider tanpa ulasan cukup ditandai "Baru" agar tidak
+// mendorong baris lokasi ke baris berikutnya.
+templ RatingRingkas(avg float64, total int) {
+	if total > 0 {
+		<span class="inline-flex shrink-0 items-center gap-0.5 text-xs">
+			@Icon("bintang", "h-3.5 w-3.5")
+			<span class="font-semibold tabular-nums" style="color: var(--text)">{ view.RatingLabel(avg) }</span>
+		</span>
+	} else {
+		<span class="shrink-0 text-xs font-medium" style="color: var(--text-subtle)">Baru</span>
+	}
+}
+
+// BadgeTerverifikasi hanya muncul untuk provider terverifikasi, dan sengaja
+// berupa ikon kecil — bukan pill berwarna yang bertebaran di seluruh halaman.
+templ BadgeTerverifikasi(verified bool, showLabel bool) {
+	if verified {
+		<span class="inline-flex items-center gap-1" style="color: var(--primary-solid)" title="Identitas penyedia sudah diverifikasi">
+			@Icon("terverifikasi", "h-4 w-4")
+			if showLabel {
+				<span class="text-xs font-semibold">Terverifikasi</span>
+			}
+		</span>
+	}
+}
+
+// BadgeBelumDibacaInline adalah penghitung kecil di atas ikon navigasi.
+// Tidak menampilkan apa pun saat tidak ada pesan belum dibaca, supaya
+// navigasi tetap bersih.
+templ BadgeBelumDibacaInline(jumlah int) {
+	if jumlah > 0 {
+		<span
+			class="absolute -right-2 -top-1 inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full px-1 text-[10px] font-bold"
+			style="background-image: linear-gradient(103deg, var(--primary-from), var(--primary-to)); color: var(--primary-contrast)"
+			aria-label={ strconv.Itoa(jumlah) + " pesan belum dibaca" }
+		>{ strconv.Itoa(jumlah) }</span>
+	}
+}
+
+// Flash adalah pesan hasil aksi. Warna dipakai seperlunya: garis kiri berwarna
+// pada permukaan netral, bukan seluruh kotak berwarna.
+templ FlashMessage(flash *view.Flash) {
+	if flash != nil {
+		<div
+			class="mb-4 flex items-start gap-3 rounded-md px-4 py-3 text-sm"
+			style={ flashStyle(flash.Kind) }
+			role={ flashRole(flash.Kind) }
+		>
+			@Icon(flashIcon(flash.Kind), "h-5 w-5 shrink-0")
+			<p class="font-medium" style="color: var(--text)">{ flash.Message }</p>
+		</div>
+	}
+}
+
+// Field membungkus satu isian form lengkap dengan label, pesan bantuan, dan error.
+templ Field(id string, label string, hint string, errMsg string) {
+	<div class="mb-4">
+		<label for={ id } class="field-label">{ label }</label>
+		{ children... }
+		if errMsg != "" {
+			<p class="field-error" id={ id + "-error" }>
+				@Icon("peringatan", "h-3.5 w-3.5 shrink-0 mt-0.5")
+				<span>{ errMsg }</span>
+			</p>
+		} else if hint != "" {
+			<span class="field-hint">{ hint }</span>
+		}
+	</div>
+}
+
+// EmptyState dipakai saat pencarian tidak menemukan hasil atau daftar masih kosong.
+templ EmptyState(title string, message string) {
+	<div class="flex flex-col items-center justify-center px-6 py-12 text-center">
+		<span class="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-full" style="background-color: var(--surface); color: var(--text-subtle)">
+			@Icon("cari", "h-6 w-6")
+		</span>
+		<h3 class="mb-1 text-lg font-bold">{ title }</h3>
+		<p class="max-w-prose text-sm" style="color: var(--text-muted)">{ message }</p>
+		{ children... }
+	</div>
+}
+
+// SectionHeading memberi judul bagian dengan hierarki yang jelas:
+// ukuran dan bobot font yang berbeda, bukan sekadar perbedaan warna.
+templ SectionHeading(title string, subtitle string) {
+	<div class="mb-4 flex items-end justify-between gap-4">
+		<div>
+			<h2 class="text-xl font-bold sm:text-2xl">{ title }</h2>
+			if subtitle != "" {
+				<p class="mt-1 text-sm" style="color: var(--text-muted)">{ subtitle }</p>
+			}
+		</div>
+		{ children... }
+	</div>
+}
+
+// Spinner adalah indikator proses untuk request HTMX.
+templ Spinner(class string) {
+	<span class={ "htmx-indicator inline-flex items-center gap-2", class }>
+		@Icon("muat", "h-4 w-4 animate-spin")
+		<span class="text-xs font-medium">Memuat…</span>
+	</span>
+}
+
+func flashStyle(kind string) string {
+	switch kind {
+	case "galat":
+		return "background-color: var(--surface); border-left: 3px solid var(--danger); color: var(--danger)"
+	case "sukses":
+		return "background-color: var(--surface); border-left: 3px solid var(--positive); color: var(--positive)"
+	default:
+		return "background-color: var(--surface); border-left: 3px solid var(--primary-solid); color: var(--primary-solid)"
+	}
+}
+
+func flashIcon(kind string) string {
+	switch kind {
+	case "galat":
+		return "peringatan"
+	case "sukses":
+		return "sukses"
+	default:
+		return "peringatan"
+	}
+}
+
+func flashRole(kind string) string {
+	if kind == "galat" {
+		return "alert"
+	}
+	return "status"
+}
+
+// hitungLabel menyusun teks jumlah hasil pencarian.
+func hitungLabel(total int) string {
+	if total == 0 {
+		return "Tidak ada jasa ditemukan"
+	}
+	return fmt.Sprintf("%d jasa ditemukan", total)
+}

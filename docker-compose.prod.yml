@@ -1,0 +1,62 @@
+# Penyesuaian khusus server.
+# Dipakai eksplisit: docker compose -f docker-compose.yml -f docker-compose.prod.yml …
+# Perhatikan: berkas ini TIDAK mewarisi docker-compose.override.yml, sehingga
+# port host yang dibuka di lokal tidak ikut terbuka di server.
+
+services:
+  app:
+    environment:
+      APP_ENV: prod
+      APP_DEBUG: "false"
+      SESSION_COOKIE_SECURE: "true"
+    # Tidak ada bagian ports: trafik masuk hanya lewat Nginx Proxy Manager.
+    volumes:
+      # Rahasia yang berupa berkas (service account FCM) dipasang baca-saja;
+      # isi FCM_SERVICE_ACCOUNT_FILE=/app/secrets/<nama>.json di .env server.
+      - ${SECRETS_DIR:-./secrets}:/app/secrets:ro
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    # Batas memori disetel untuk VPS 2 vCPU / 4 GB yang berbagi dengan stack
+    # lain. Pemakaian nyata aplikasi ±40 MB; batas adalah pagar, bukan target.
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  postgres:
+    # shared_buffers 128 MB bawaan sudah cukup untuk beban MVP; pagar 512 MB
+    # menyisakan ruang untuk work_mem dan koneksi tanpa mengancam host.
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  redis:
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+
+networks:
+  internal:
+    # Nginx Proxy Manager di server perlu bergabung ke jaringan ini agar bisa
+    # meneruskan trafik ke service app:
+    #   docker network connect ${DOCKER_NETWORK} nginx-proxy-manager
+    # Subnet ditetapkan supaya APP_TRUSTED_PROXIES bisa diisi pasti.
+    name: ${DOCKER_NETWORK:-adojobsid_internal}
+    ipam:
+      config:
+        - subnet: ${DOCKER_SUBNET:-172.23.0.0/24}

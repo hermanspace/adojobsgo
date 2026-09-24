@@ -1,0 +1,201 @@
+package pages
+
+import (
+	"strconv"
+
+	"github.com/hermansyah/adojobsid/internal/repository"
+	"github.com/hermansyah/adojobsid/internal/view"
+	"github.com/hermansyah/adojobsid/web/templates/components"
+	"github.com/hermansyah/adojobsid/web/templates/layout"
+)
+
+// DaftarPenyedia adalah direktori penyedia jasa.
+// Berbeda dengan halaman pencarian yang berpusat pada listing, halaman ini
+// berpusat pada orangnya — untuk pengunjung yang mencari "siapa tukang AC
+// di dekat sini", bukan "jasa apa yang tersedia".
+templ DaftarPenyedia(d view.DaftarPenyediaData) {
+	@layout.Base(d.Base) {
+		<div class="container-app py-4 md:py-8">
+			<form action="/penyedia" method="get" class="mb-4" role="search">
+				<div class="relative">
+					<span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2" style="color: var(--text-subtle)">
+						@components.Icon("cari", "h-5 w-5")
+					</span>
+					<input
+						id="q-penyedia"
+						type="search"
+						name="q"
+						value={ d.Query }
+						class="input pl-11 pr-3 text-base"
+						placeholder="Cari nama penyedia atau keahliannya…"
+						aria-label="Cari penyedia jasa"
+						autocomplete="off"
+					/>
+				</div>
+				<div class="mt-3 grid grid-cols-2 gap-2 sm:flex sm:items-center">
+					<label for="kecamatan" class="sr-only">Kecamatan</label>
+					<select id="kecamatan" name="kecamatan" class="input !min-h-0 h-10 w-full text-sm sm:flex-1">
+						<option value="">Semua kecamatan</option>
+						for _, k := range d.KecamatanOps {
+							if k == d.Kecamatan {
+								<option value={ k } selected>{ k }</option>
+							} else {
+								<option value={ k }>{ k }</option>
+							}
+						}
+					</select>
+					<label for="radius" class="sr-only">Radius</label>
+					<select id="radius" name="radius" class="input !min-h-0 h-10 w-full text-sm sm:flex-1">
+						<option value="">Semua jarak</option>
+						for _, r := range d.PilihanRadius() {
+							if r == d.RadiusKm {
+								<option value={ strconv.Itoa(r) } selected>Dalam { strconv.Itoa(r) } km</option>
+							} else {
+								<option value={ strconv.Itoa(r) }>Dalam { strconv.Itoa(r) } km</option>
+							}
+						}
+					</select>
+					<label for="urut" class="sr-only">Urutkan</label>
+					<select id="urut" name="urut" class="input !min-h-0 h-10 w-full text-sm sm:flex-1">
+						@opsiUrutPenyedia("jasa", "Paling banyak jasa", d.Sort)
+						@opsiUrutPenyedia("terdekat", "Terdekat", d.Sort)
+						@opsiUrutPenyedia("rating", "Rating tertinggi", d.Sort)
+						@opsiUrutPenyedia("terbaru", "Bergabung terbaru", d.Sort)
+					</select>
+					<button type="submit" class="btn btn-primary !min-h-0 col-span-2 h-10 sm:col-span-1">Cari</button>
+				</div>
+				<div class="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm">
+					<label class="flex items-center gap-2">
+						<input
+							type="checkbox"
+							name="terverifikasi"
+							value="1"
+							class="h-4 w-4 rounded-xs"
+							checked?={ d.HanyaTerverifikasi }
+						/>
+						<span style="color: var(--text-muted)">Hanya terverifikasi</span>
+					</label>
+					<label class="flex items-center gap-2">
+						<input
+							type="checkbox"
+							name="berjasa"
+							value="1"
+							class="h-4 w-4 rounded-xs"
+							checked?={ d.HanyaBerjasa }
+						/>
+						<span style="color: var(--text-muted)">Hanya yang punya jasa aktif</span>
+					</label>
+				</div>
+			</form>
+			<div class="mb-3">
+				@components.PemilihLokasi(d.Base, "/penyedia")
+			</div>
+			<div class="mb-4 flex items-baseline justify-between gap-3">
+				<div>
+					<h1 class="text-xl font-bold sm:text-2xl">Penyedia jasa di Bengkalis</h1>
+					<p class="text-sm font-medium" style="color: var(--text-muted)">{ d.JumlahPenyedia() }</p>
+				</div>
+				<a href="/cari" class="shrink-0 text-sm font-semibold" style="color: var(--primary-solid)">
+					Cari per jasa
+				</a>
+			</div>
+			if len(d.Items) == 0 {
+				@components.EmptyState(
+					"Tidak ada penyedia yang cocok",
+					"Coba ganti kata kunci, pilih kecamatan lain, atau longgarkan filternya.",
+				) {
+					<a href="/penyedia" class="btn btn-secondary mt-4">Hapus semua filter</a>
+				}
+			} else {
+				<div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+					for _, p := range d.Items {
+						@KartuDirektoriPenyedia(p)
+					}
+				</div>
+				@paginasiPenyedia(d)
+			}
+		</div>
+	}
+}
+
+// KartuDirektoriPenyedia menampilkan satu penyedia beserta informasi yang
+// dibutuhkan untuk memutuskan apakah layak dibuka.
+templ KartuDirektoriPenyedia(p repository.ProviderCard) {
+	<article class={ "surface-panel relative overflow-hidden transition-colors",
+		templ.KV("is-sorot-penyedia", p.IsFeatured()) }>
+		if p.IsFeatured() {
+			<span class="pita-sorot-penyedia"></span>
+			<span class="sr-only">Penyedia pilihan pengelola.</span>
+		}
+		<a href={ templ.SafeURL(view.URLPenyedia(p.Slug)) } class="block p-4">
+			<div class="flex items-start gap-3">
+				@components.Avatar(view.Deref(p.AvatarURL), p.FullName, "h-12 w-12 text-sm")
+				<div class="min-w-0 flex-1">
+					<h2 class="flex items-center gap-1.5 text-base font-bold">
+						<span class="clamp-1">{ p.FullName }</span>
+						@components.BadgeTerverifikasi(p.IsVerified, false)
+					</h2>
+					<p class="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs" style="color: var(--text-muted)">
+						<span class="inline-flex items-center gap-1">
+							@components.Icon("lokasi", "h-3.5 w-3.5 shrink-0")
+							if p.JarakKm != nil {
+								<span class="font-semibold tabular-nums" style="color: var(--text)">
+									{ view.JarakLabel(p.JarakKm) }
+								</span>
+							} else {
+								<span class="clamp-1">{ view.Lokasi(p.Kecamatan, p.City) }</span>
+							}
+						</span>
+						<span>·</span>
+						<span>{ view.RingkasJasa(p.TotalJasa) }</span>
+					</p>
+					<div class="mt-1">
+						@components.Rating(p.AvgRating, p.TotalReviews, "text-xs")
+					</div>
+				</div>
+			</div>
+			if p.Bio != nil && *p.Bio != "" {
+				<p class="clamp-2 mt-3 text-sm" style="color: var(--text-muted)">{ *p.Bio }</p>
+			}
+			if p.JarakKm != nil && !p.Menjangkau() {
+				<p class="mt-2 text-2xs" style="color: var(--text-subtle)">
+					Di luar radius layanan { strconv.Itoa(p.ServiceRadiusKm) } km penyedia ini
+				</p>
+			}
+		</a>
+	</article>
+}
+
+templ opsiUrutPenyedia(value string, label string, current string) {
+	if value == current || (value == "jasa" && current == "") {
+		<option value={ value } selected>{ label }</option>
+	} else {
+		<option value={ value }>{ label }</option>
+	}
+}
+
+templ paginasiPenyedia(d view.DaftarPenyediaData) {
+	if d.TotalPages > 1 {
+		<nav class="mt-6 flex items-center justify-between gap-3" aria-label="Paginasi penyedia">
+			if d.AdaSebelum() {
+				<a href={ templ.SafeURL(d.URLHalaman(d.HalamanSebelum())) } class="btn btn-secondary btn-sm">
+					@components.Icon("panah-kiri", "h-4 w-4")
+					Sebelumnya
+				</a>
+			} else {
+				<span></span>
+			}
+			<span class="text-xs tabular-nums" style="color: var(--text-muted)">
+				Halaman { strconv.Itoa(d.Page) } dari { strconv.Itoa(d.TotalPages) }
+			</span>
+			if d.AdaSesudah() {
+				<a href={ templ.SafeURL(d.URLHalaman(d.HalamanSesudah())) } class="btn btn-secondary btn-sm">
+					Berikutnya
+					@components.Icon("panah-kanan", "h-4 w-4")
+				</a>
+			} else {
+				<span></span>
+			}
+		</nav>
+	}
+}

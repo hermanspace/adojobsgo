@@ -1,0 +1,312 @@
+package pages
+
+import (
+	"fmt"
+	"strconv"
+	"strings"
+
+	"github.com/hermansyah/adojobsid/internal/model"
+	"github.com/hermansyah/adojobsid/internal/view"
+	"github.com/hermansyah/adojobsid/web/templates/components"
+	"github.com/hermansyah/adojobsid/web/templates/layout"
+)
+
+// DaftarPromosi adalah halaman "promosi saya".
+templ DaftarPromosi(d view.PromosiData) {
+	@layout.Base(d.Base) {
+		<div class="container-app py-4 md:py-8">
+			<div class="mb-6 flex flex-wrap items-end justify-between gap-4">
+				<div>
+					<h1 class="text-xl font-bold sm:text-2xl">Promosi</h1>
+					<p class="mt-1 text-sm" style="color: var(--text-muted)">Iklan, sorotan jasa, dan penyedia pilihan yang Anda ajukan.</p>
+				</div>
+				<div class="flex flex-wrap gap-2">
+					<a href="/promosi/baru?jenis=iklan" class="btn btn-secondary btn-sm">Pasang iklan</a>
+					if d.IsProvider {
+						<a href="/promosi/baru?jenis=sorotan_jasa" class="btn btn-secondary btn-sm">Sorot jasa</a>
+						<a href="/promosi/baru?jenis=penyedia_pilihan" class="btn btn-primary btn-sm">Ajukan penyedia pilihan</a>
+					}
+				</div>
+			</div>
+			if len(d.Items) == 0 {
+				@components.EmptyState("Belum ada pengajuan", "Sorot jasa Anda supaya naik di hasil pencarian, ajukan jadi penyedia pilihan di beranda, atau pasang iklan untuk usaha apa pun.") {
+				}
+			} else {
+				<div class="surface-panel divide-y" style="border-color: var(--border)">
+					for _, p := range d.Items {
+						@barisPromosi(p, d.NamaPaket(p))
+					}
+				</div>
+			}
+		</div>
+	}
+}
+
+templ barisPromosi(p model.Promosi, namaPaket string) {
+	<a href={ templ.SafeURL(fmt.Sprintf("/promosi/%d", p.ID)) } class="flex items-center gap-4 p-4 transition-colors hover:bg-surface">
+		<div class="min-w-0 flex-1">
+			<p class="flex flex-wrap items-center gap-2">
+				<span class="font-semibold">{ model.LabelJenisPromosi(p.Jenis) }</span>
+				<span class={ view.KelasStatusPromosi(p.Status) }>{ model.LabelStatusPromosi(p.Status) }</span>
+			</p>
+			<p class="mt-0.5 clamp-1 text-sm" style="color: var(--text-muted)">
+				if p.Judul != nil {
+					{ *p.Judul } ·
+				}
+				{ namaPaket } · diajukan { view.WaktuRelatif(p.CreatedAt) }
+			</p>
+		</div>
+		if p.Status == model.StatusAktif {
+			<div class="hidden shrink-0 text-right text-xs sm:block" style="color: var(--text-muted)">
+				<span class="block font-semibold tabular-nums" style="color: var(--text)">{ strconv.FormatInt(p.Tayang, 10) } tayang</span>
+				<span class="tabular-nums">{ strconv.FormatInt(p.Klik, 10) } klik</span>
+			</div>
+		}
+		@components.Icon("panah-kanan", "h-4 w-4 shrink-0")
+	</a>
+}
+
+// PromosiBaru adalah form pengajuan. Bagian yang tampil mengikuti jenis;
+// yang sama untuk semua jenis hanya pilihan paket.
+templ PromosiBaru(d view.PromosiBaruData) {
+	@layout.Base(d.Base) {
+		<div class="container-app max-w-2xl py-4 md:py-8">
+			<a href="/promosi" class="mb-4 inline-flex items-center gap-1 text-sm font-medium" style="color: var(--text-muted)">
+				@components.Icon("panah-kiri", "h-4 w-4")
+				Promosi saya
+			</a>
+			<h1 class="text-xl font-bold sm:text-2xl">Ajukan { strings.ToLower(d.LabelJenis()) }</h1>
+			<p class="mt-1 mb-6 text-sm" style="color: var(--text-muted)">
+				switch d.Jenis {
+					case model.PromosiSorotan:
+						Jasa yang disorot naik ke atas hasil pencarian dan kartunya ditandai selama masa paket.
+					case model.PromosiPenyedia:
+						Penyedia pilihan tampil di blok tersendiri di beranda dan kartunya ditandai selama masa paket.
+					default:
+						Iklan tayang di slot yang termasuk paket, hanya kepada penonton di kecamatan yang Anda pilih.
+				}
+			</p>
+			if len(d.Paket) == 0 {
+				@components.EmptyState("Belum ada paket", "Pengelola belum menyediakan paket untuk jenis promosi ini.") {
+				}
+			} else {
+				<form action="/promosi" method="post" enctype="multipart/form-data" class="surface-panel p-5" novalidate>
+					<input type="hidden" name="jenis" value={ d.Jenis }/>
+					<fieldset class="mb-5">
+						<legend class="field-label">Paket</legend>
+						<div class="flex flex-col gap-2">
+							for _, p := range d.Paket {
+								<label class="flex cursor-pointer items-start gap-3 rounded-md border p-3" style="border-color: var(--border)">
+									<input type="radio" name="paket_id" value={ strconv.FormatInt(p.ID, 10) } class="mt-1 h-4 w-4" checked?={ d.Form.Selected("paket_id", strconv.FormatInt(p.ID, 10)) }/>
+									<span class="min-w-0 flex-1">
+										<span class="flex flex-wrap items-baseline justify-between gap-2">
+											<span class="font-semibold">{ p.Nama }</span>
+											<span class="text-sm tabular-nums" style="color: var(--text-muted)">
+												{ strconv.Itoa(p.DurasiHari) } hari ·
+												if p.Gratis() {
+													gratis
+												} else {
+													{ view.RupiahLabel(p.Harga) }
+												}
+											</span>
+										</span>
+										if p.Deskripsi != "" {
+											<span class="mt-0.5 block text-xs" style="color: var(--text-muted)">{ p.Deskripsi }</span>
+										}
+									</span>
+								</label>
+							}
+						</div>
+						if d.Form.HasErr("paket_id") {
+							<p class="field-error">
+								@components.Icon("peringatan", "h-3.5 w-3.5 shrink-0 mt-0.5")
+								<span>{ d.Form.Err("paket_id") }</span>
+							</p>
+						}
+					</fieldset>
+					switch d.Jenis {
+						case model.PromosiSorotan:
+							@bagianSorotan(d)
+						case model.PromosiPenyedia:
+							@components.Field("alasan", "Mengapa layak jadi penyedia pilihan?", "Opsional, maksimal 500 karakter. Pengelola membacanya saat meninjau.", d.Form.Err("alasan")) {
+								<textarea id="alasan" name="alasan" rows="4" class="input input-textarea">{ d.Form.Value("alasan") }</textarea>
+							}
+						default:
+							@bagianIklan(d)
+					}
+					<button type="submit" class="btn btn-primary btn-lg w-full">Kirim pengajuan</button>
+					<p class="mt-3 text-2xs" style="color: var(--text-subtle)">
+						Pengelola meninjau setiap pengajuan. Masa tayang dihitung sejak disetujui dan mulai tayang, bukan sejak diajukan.
+					</p>
+				</form>
+			}
+		</div>
+	}
+}
+
+templ bagianSorotan(d view.PromosiBaruData) {
+	<fieldset class="mb-5">
+		<legend class="field-label">Jasa yang disorot</legend>
+		if len(d.Listings) == 0 {
+			<p class="text-sm" style="color: var(--text-muted)">Belum ada jasa Anda yang tayang. <a href="/jasa/baru" class="font-semibold" style="color: var(--primary-solid)">Pasang jasa dulu.</a></p>
+		} else {
+			<div class="flex flex-col gap-2">
+				for _, l := range d.Listings {
+					<label class="flex cursor-pointer items-center gap-3 rounded-md border p-3" style="border-color: var(--border)">
+						<input type="radio" name="service_id" value={ strconv.FormatInt(l.ID, 10) } class="h-4 w-4" checked?={ d.Form.Selected("service_id", strconv.FormatInt(l.ID, 10)) }/>
+						<span class="min-w-0">
+							<span class="clamp-1 font-semibold">{ l.Title }</span>
+							<span class="block text-xs" style="color: var(--text-muted)">{ l.CategoryName }</span>
+						</span>
+					</label>
+				}
+			</div>
+		}
+		if d.Form.HasErr("service_id") {
+			<p class="field-error">
+				@components.Icon("peringatan", "h-3.5 w-3.5 shrink-0 mt-0.5")
+				<span>{ d.Form.Err("service_id") }</span>
+			</p>
+		}
+	</fieldset>
+}
+
+templ bagianIklan(d view.PromosiBaruData) {
+	@components.Field("judul", "Judul iklan", "5–120 karakter.", d.Form.Err("judul")) {
+		<input id="judul" name="judul" type="text" class="input" value={ d.Form.Value("judul") } maxlength="120" required/>
+	}
+	@components.Field("deskripsi", "Keterangan singkat", "Opsional, tampil di bawah gambar.", d.Form.Err("deskripsi")) {
+		<input id="deskripsi" name="deskripsi" type="text" class="input" value={ d.Form.Value("deskripsi") } maxlength="300"/>
+	}
+	@components.Field("gambar", "Gambar iklan", "JPG, PNG, atau WEBP. Disarankan melebar (mis. 1200×400).", d.Form.Err("gambar")) {
+		<input id="gambar" name="gambar" type="file" accept="image/jpeg,image/png,image/webp" class="input" required/>
+	}
+	@components.Field("tautan_url", "Tautan tujuan", "Opsional. Ke mana pengunjung diarahkan saat mengeklik iklan.", d.Form.Err("tautan_url")) {
+		<input id="tautan_url" name="tautan_url" type="url" class="input" value={ d.Form.Value("tautan_url") } placeholder="https://"/>
+	}
+	<fieldset class="mb-5">
+		<legend class="field-label">Kecamatan sasaran</legend>
+		<p class="mb-2 text-xs" style="color: var(--text-muted)">Kosongkan untuk seluruh kabupaten. Iklan hanya tayang kepada penonton di kecamatan yang dipilih, jadi angka tayangnya wajar lebih rendah daripada iklan seluruh kabupaten.</p>
+		<div class="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
+			for _, k := range d.Kecamatan {
+				<label class="flex items-center gap-2 text-sm">
+					<input type="checkbox" name="target_kecamatan" value={ k } class="h-4 w-4 rounded-xs" checked?={ d.KecamatanDipilih(k) }/>
+					<span>{ k }</span>
+				</label>
+			}
+		</div>
+		if d.Form.HasErr("target_kecamatan") {
+			<p class="field-error">
+				@components.Icon("peringatan", "h-3.5 w-3.5 shrink-0 mt-0.5")
+				<span>{ d.Form.Err("target_kecamatan") }</span>
+			</p>
+		}
+	</fieldset>
+}
+
+// PromosiDetail menampilkan status, jadwal, statistik, dan — bila perlu —
+// petunjuk pembayaran satu pengajuan.
+templ PromosiDetail(d view.PromosiDetailData) {
+	@layout.Base(d.Base) {
+		<div class="container-app max-w-2xl py-4 md:py-8">
+			<a href="/promosi" class="mb-4 inline-flex items-center gap-1 text-sm font-medium" style="color: var(--text-muted)">
+				@components.Icon("panah-kiri", "h-4 w-4")
+				Promosi saya
+			</a>
+			<div class="flex flex-wrap items-center gap-3">
+				<h1 class="text-xl font-bold sm:text-2xl">{ d.LabelJenis() }</h1>
+				<span class={ view.KelasStatusPromosi(d.Promosi.Status) }>{ d.LabelStatus() }</span>
+			</div>
+			if d.Promosi.Status == model.StatusDitolak && d.Promosi.CatatanAdmin != nil {
+				<div class="surface-panel mt-4 p-4" style="border-left: 3px solid var(--danger)">
+					<p class="text-sm font-semibold">Catatan pengelola</p>
+					<p class="mt-1 text-sm" style="color: var(--text-muted)">{ *d.Promosi.CatatanAdmin }</p>
+				</div>
+			}
+			if d.PerluBayar() {
+				@panelPembayaran(d)
+			}
+			<div class="surface-panel mt-4 divide-y" style="border-color: var(--border)">
+				if d.Paket != nil {
+					@barisRincian("Paket", d.Paket.Nama+" · "+strconv.Itoa(d.Paket.DurasiHari)+" hari")
+				}
+				if d.JudulJasa != "" {
+					@barisRincian("Jasa", d.JudulJasa)
+				}
+				if d.Promosi.Judul != nil {
+					@barisRincian("Judul", *d.Promosi.Judul)
+				}
+				if len(d.Promosi.TargetKecamatan) > 0 {
+					@barisRincian("Kecamatan sasaran", strings.Join(d.Promosi.TargetKecamatan, ", "))
+				} else if d.Promosi.Jenis == model.PromosiIklan {
+					@barisRincian("Kecamatan sasaran", "Seluruh kabupaten")
+				}
+				@barisRincian("Diajukan", view.WaktuRelatif(d.Promosi.CreatedAt))
+				if d.Promosi.MulaiAt != nil && d.Promosi.SelesaiAt != nil {
+					@barisRincian("Masa tayang", d.Promosi.MulaiAt.Format("2 Jan 2006")+" – "+d.Promosi.SelesaiAt.Format("2 Jan 2006"))
+					if d.Promosi.Status == model.StatusAktif {
+						@barisRincian("Sisa", strconv.Itoa(d.SisaHari())+" hari")
+					}
+				}
+				if d.Promosi.Status == model.StatusAktif || d.Promosi.Status == model.StatusSelesai {
+					@barisRincian("Tayang / klik", strconv.FormatInt(d.Promosi.Tayang, 10)+" / "+strconv.FormatInt(d.Promosi.Klik, 10))
+					if d.Promosi.Jenis == model.PromosiIklan {
+						@barisRincian("Rasio klik", d.CTR())
+						@barisRincian("Rata-rata tayang / hari", d.TayangPerHari())
+					}
+				}
+			</div>
+			if d.Promosi.Jenis == model.PromosiIklan && d.Promosi.Status == model.StatusAktif && len(d.Promosi.TargetKecamatan) > 0 {
+				<p class="mt-2 text-2xs" style="color: var(--text-subtle)">
+					Tayangan hanya dihitung dari penonton di kecamatan sasaran, jadi wajar lebih rendah daripada iklan seluruh kabupaten.
+				</p>
+			}
+			if d.Promosi.GambarURL != nil {
+				<div class="surface-panel mt-4 p-4">
+					<p class="mb-2 text-xs font-semibold uppercase tracking-widest" style="color: var(--text-muted)">Materi iklan</p>
+					<img src={ *d.Promosi.GambarURL } alt={ view.Deref(d.Promosi.Judul) } class="w-full rounded-md" style="max-height: 320px; object-fit: contain; background-color: var(--surface)"/>
+					if d.Promosi.Deskripsi != nil {
+						<p class="mt-2 text-sm" style="color: var(--text-muted)">{ *d.Promosi.Deskripsi }</p>
+					}
+				</div>
+			}
+			if d.BisaBatal() {
+				<form action={ templ.SafeURL(fmt.Sprintf("/promosi/%d/batal", d.Promosi.ID)) } method="post" class="mt-4">
+					<button type="submit" class="btn btn-danger w-full">Batalkan pengajuan</button>
+				</form>
+			}
+		</div>
+	}
+}
+
+templ barisRincian(label string, nilai string) {
+	<div class="flex justify-between gap-4 px-4 py-3 text-sm">
+		<span style="color: var(--text-muted)">{ label }</span>
+		<span class="text-right font-medium">{ nilai }</span>
+	</div>
+}
+
+templ panelPembayaran(d view.PromosiDetailData) {
+	<div class="surface-panel mt-4 p-4" style="border-left: 3px solid var(--primary-solid)">
+		if d.SudahUnggahBukti() {
+			<p class="text-sm font-semibold">Bukti pembayaran sudah dikirim</p>
+			<p class="mt-1 text-sm" style="color: var(--text-muted)">Pengelola akan mengonfirmasinya; promosi mulai tayang setelah itu. Kirim ulang bila bukti sebelumnya keliru.</p>
+		} else {
+			<p class="text-sm font-semibold">Pengajuan disetujui — selesaikan pembayaran</p>
+			<p class="mt-1 text-sm" style="color: var(--text-muted)">Transfer sebesar <span class="font-semibold" style="color: var(--text)">{ view.RupiahLabel(d.Paket.Harga) }</span> ke rekening berikut, lalu unggah buktinya.</p>
+		}
+		<dl class="mt-3 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
+			<dt style="color: var(--text-muted)">Bank</dt><dd class="font-medium">{ d.Pembayaran.Bank }</dd>
+			<dt style="color: var(--text-muted)">Nomor rekening</dt><dd class="font-medium tabular-nums">{ d.Pembayaran.NomorRekening }</dd>
+			<dt style="color: var(--text-muted)">Atas nama</dt><dd class="font-medium">{ d.Pembayaran.AtasNama }</dd>
+		</dl>
+		if d.Pembayaran.PetunjukBayar != "" {
+			<p class="mt-2 text-xs" style="color: var(--text-muted)">{ d.Pembayaran.PetunjukBayar }</p>
+		}
+		<form action={ templ.SafeURL(fmt.Sprintf("/promosi/%d/bukti", d.Promosi.ID)) } method="post" enctype="multipart/form-data" class="mt-4">
+			<label for="bukti" class="field-label">Bukti transfer</label>
+			<input id="bukti" name="bukti" type="file" accept="image/jpeg,image/png,image/webp" class="input" required/>
+			<button type="submit" class="btn btn-primary mt-3 w-full">Kirim bukti pembayaran</button>
+		</form>
+	</div>
+}

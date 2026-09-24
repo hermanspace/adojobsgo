@@ -1,0 +1,127 @@
+package layout
+
+import (
+	"strconv"
+
+	"github.com/hermansyah/adojobsid/internal/view"
+	"github.com/hermansyah/adojobsid/web/templates/components"
+)
+
+// MenuUtama: tombol melayang + sheet berisi peta lengkap aplikasi.
+//
+// Sheet memakai elemen <dialog> bawaan: perangkap fokus, tombol Esc, dan
+// lapisan latar didapat gratis dari peramban. JavaScript-nya hanya
+// membuka/menutup (lihat "menu utama" di app.js) — tidak ada pustaka baru.
+// Isinya datang dari view.MenuUtama, sumber yang sama dengan API Android.
+templ MenuUtama(b view.Base) {
+	<button
+		type="button"
+		class="fab"
+		data-menu-buka
+		aria-haspopup="dialog"
+		aria-controls="menu-utama"
+		aria-label="Buka menu utama"
+	>
+		@components.Icon("menu", "h-6 w-6")
+		<span id="badge-fab">
+			@components.BadgeBelumDibacaInline(b.BelumDibaca)
+		</span>
+	</button>
+	<dialog id="menu-utama" class="sheet" aria-labelledby="menu-utama-judul">
+		<div class="flex items-center gap-3 px-4 pt-4 pb-3" style="border-bottom: 1px solid var(--border)">
+			if b.LoggedIn() {
+				@components.Avatar(b.User.AvatarURL, b.User.FullName, "h-10 w-10 text-xs")
+				<div class="min-w-0 flex-1">
+					<p id="menu-utama-judul" class="truncate text-sm font-semibold">{ b.User.FullName }</p>
+					<p class="text-xs" style="color: var(--text-muted)">{ peranPengguna(b.User) }</p>
+				</div>
+			} else {
+				<div class="min-w-0 flex-1">
+					<p id="menu-utama-judul" class="text-sm font-semibold">Menu { b.Situs.Nama }</p>
+					<p class="text-xs" style="color: var(--text-muted)">Cari jasa, jual jasa, pasang iklan — semua dari sini.</p>
+				</div>
+			}
+			<button type="button" class="btn btn-ghost !min-h-0 h-9 w-9 !px-0" data-menu-tutup aria-label="Tutup menu">
+				@components.Icon("tutup", "h-5 w-5")
+			</button>
+		</div>
+		<nav class="px-2 pb-2" aria-label="Menu utama">
+			for _, bagian := range view.MenuUtama(b.KonteksMenu()) {
+				<p class="px-3 pt-4 pb-1 text-2xs font-semibold uppercase tracking-widest" style="color: var(--text-subtle)">{ bagian.Judul }</p>
+				for _, item := range bagian.Item {
+					@itemMenu(item)
+				}
+			}
+		</nav>
+	</dialog>
+}
+
+// itemMenu merender satu item sesuai jenisnya. Jenis menentukan elemen —
+// tautan, form keluar, tombol tema, tombol pasang — bukan kelasnya.
+templ itemMenu(it view.MenuItem) {
+	switch it.Jenis {
+		case view.MenuKeluar:
+			<form action={ templ.SafeURL(it.Tautan) } method="post">
+				<button type="submit" class="sheet-item">
+					<span class="sheet-ikon" style="color: var(--danger)">
+						@components.Icon(it.Ikon, "h-5 w-5")
+					</span>
+					<span class="flex-1 font-semibold" style="color: var(--danger)">{ it.Label }</span>
+				</button>
+			</form>
+		case view.MenuTema:
+			<button type="button" class="sheet-item" data-theme-toggle aria-pressed="false">
+				<span class="sheet-ikon">
+					<span class="dark:hidden">
+						@components.Icon("bulan", "h-5 w-5")
+					</span>
+					<span class="hidden dark:inline">
+						@components.Icon("matahari", "h-5 w-5")
+					</span>
+				</span>
+				<span class="flex-1 font-semibold">{ it.Label }</span>
+			</button>
+		case view.MenuAplikasi:
+			if it.Keadaan == view.AplikasiPlaystore {
+				<a href={ templ.SafeURL(it.Tautan) } class="sheet-item" target="_blank" rel="noopener">
+					@isiItem(it)
+				</a>
+			} else {
+				<!-- Disembunyikan sampai peramban menawarkan pemasangan (beforeinstallprompt);
+				     tetap tersembunyi bila sudah terpasang atau peramban tidak mendukung. -->
+				<button type="button" class="sheet-item" data-pasang-pwa hidden>
+					@isiItem(it)
+				</button>
+			}
+		default:
+			<a href={ templ.SafeURL(it.Tautan) } class={ "sheet-item", templ.KV("is-utama", it.Utama) }>
+				@isiItem(it)
+			</a>
+	}
+}
+
+templ isiItem(it view.MenuItem) {
+	<span class="sheet-ikon">
+		@components.Icon(it.Ikon, "h-5 w-5")
+	</span>
+	<span class="min-w-0 flex-1">
+		<span class="block font-semibold">{ it.Label }</span>
+		if it.Keterangan != "" {
+			<span class="sheet-keterangan">{ it.Keterangan }</span>
+		}
+	</span>
+	if it.Badge > 0 {
+		<span class="inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full px-1.5 text-2xs font-bold" style="background-image: linear-gradient(103deg, var(--primary-from), var(--primary-to)); color: var(--primary-contrast)" aria-label={ strconv.Itoa(it.Badge) + " belum dibaca" }>{ strconv.Itoa(it.Badge) }</span>
+	}
+}
+
+func peranPengguna(u *view.CurrentUser) string {
+	switch {
+	case u.IsAdmin:
+		return "Admin"
+	case u.IsProvider:
+		return "Penyedia jasa"
+	default:
+		return "Pengguna"
+	}
+}

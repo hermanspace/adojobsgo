@@ -1,0 +1,166 @@
+package pages
+
+import (
+	"fmt"
+	"strconv"
+
+	"github.com/hermansyah/adojobsid/internal/model"
+	"github.com/hermansyah/adojobsid/internal/view"
+	"github.com/hermansyah/adojobsid/web/templates/components"
+	"github.com/hermansyah/adojobsid/web/templates/layout"
+)
+
+// AdminAntrean adalah antrean listing yang menunggu persetujuan.
+// Berbeda dengan halaman listing biasa, di sini isi listing ditampilkan
+// cukup lengkap supaya admin bisa menilai tanpa membuka halaman lain.
+templ AdminAntrean(d view.AdminAntreanData) {
+	@layout.AdminBase(d.AdminBase) {
+		<div class="mb-4 flex items-center justify-end">
+			<a href="/admin/jasa" class="text-xs font-semibold" style="color: var(--primary-solid)">
+				Lihat semua listing
+			</a>
+		</div>
+		<!-- Isi antrean dibungkus id tetap: tombol setujui dan tolak menukar
+		     bagian ini lewat HTMX, jadi targetnya harus selalu ada di halaman
+		     penuh, bukan hanya di fragmennya. -->
+		<div id="panel-antrean">
+			@AdminAntreanIsi(d)
+		</div>
+	}
+}
+
+templ KartuAntrean(s model.ServiceCard) {
+	<article class="surface-panel p-4" id={ fmt.Sprintf("antrean-%d", s.ID) }>
+		<div class="flex flex-col gap-4 md:flex-row">
+			<div class="shrink-0">
+				<span class="block h-28 w-full overflow-hidden rounded-md md:w-40" style="background-color: var(--surface)">
+					if s.CoverImage != nil && *s.CoverImage != "" {
+						<img src={ *s.CoverImage } alt="" loading="lazy" class="h-full w-full object-cover"/>
+					} else {
+						<span class="flex h-full w-full flex-col items-center justify-center gap-1" style="color: var(--text-subtle)">
+							@components.Icon("foto", "h-5 w-5")
+							<span class="text-2xs">Tanpa foto</span>
+						</span>
+					}
+				</span>
+			</div>
+			<div class="min-w-0 flex-1">
+				<p class="text-2xs font-semibold uppercase tracking-widest" style="color: var(--primary-solid)">
+					{ s.CategoryName }
+				</p>
+				<h2 class="mt-1 text-base font-bold">
+					<a href={ templ.SafeURL(fmt.Sprintf("/jasa/%d", s.ID)) } target="_blank" rel="noopener" class="hover:underline">
+						{ s.Title }
+					</a>
+				</h2>
+				<p class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs" style="color: var(--text-muted)">
+					<span>{ s.ProviderName }</span>
+					<span>{ view.Lokasi(s.ProviderKec, s.ProviderCity) }</span>
+					<span class="font-semibold" style="color: var(--text)">
+						{ view.HargaLabel(s.PriceType, s.PriceMin, s.PriceMax) }
+					</span>
+					<span>Menunggu { view.WaktuRelatif(s.SubmittedAt) }</span>
+				</p>
+				<p class="clamp-3 mt-2 text-sm" style="color: var(--text-muted)">{ s.Description }</p>
+			</div>
+		</div>
+		<div class="mt-4 flex flex-wrap items-start gap-2 divider pt-3">
+			<button
+				type="button"
+				class="btn btn-primary btn-sm"
+				hx-post={ fmt.Sprintf("/admin/antrean/%d/setujui", s.ID) }
+				hx-target="#panel-antrean"
+				hx-swap="innerHTML"
+			>
+				@components.Icon("sukses", "h-4 w-4")
+				Setujui &amp; tayangkan
+			</button>
+			<!-- Penolakan wajib disertai alasan: provider perlu tahu apa yang
+			     harus diperbaiki, bukan sekadar bahwa listingnya ditolak. -->
+			<details class="aksi-lipat">
+				<summary>Tolak</summary>
+				<div class="surface-panel mt-1 w-72 p-3">
+					<label for={ fmt.Sprintf("alasan-tolak-%d", s.ID) } class="field-label">
+						Alasan penolakan
+					</label>
+					<textarea
+						id={ fmt.Sprintf("alasan-tolak-%d", s.ID) }
+						name="alasan"
+						rows="3"
+						class="input text-sm"
+						placeholder="Contoh: deskripsi terlalu singkat dan foto tidak menunjukkan pekerjaan."
+						minlength="10"
+						required
+					></textarea>
+					<p class="field-hint mb-2">Alasan ini dikirim ke penyedia.</p>
+					<button
+						type="button"
+						class="btn btn-danger btn-sm w-full"
+						hx-post={ fmt.Sprintf("/admin/antrean/%d/tolak", s.ID) }
+						hx-include={ fmt.Sprintf("#alasan-tolak-%d", s.ID) }
+						hx-target="#panel-antrean"
+						hx-swap="innerHTML"
+					>Tolak listing</button>
+				</div>
+			</details>
+			<a
+				href={ templ.SafeURL(fmt.Sprintf("/jasa/%d/ubah", s.ID)) }
+				class="btn btn-secondary btn-sm"
+			>
+				@components.Icon("ubah", "h-4 w-4")
+				Perbaiki sendiri
+			</a>
+		</div>
+	</article>
+}
+
+// AdminAntreanIsi adalah fragmen yang ditukar HTMX setelah satu keputusan.
+templ AdminAntreanIsi(d view.AdminAntreanData) {
+	<div class="mb-4 flex items-center justify-between gap-3">
+		<p class="text-sm font-medium" style="color: var(--text-muted)">{ jumlahAntrean(d.Total) }</p>
+	</div>
+	if len(d.Items) == 0 {
+		@components.EmptyState("Antrean kosong", "Semua listing sudah ditinjau.") {
+		}
+	} else {
+		<div class="flex flex-col gap-4">
+			for _, s := range d.Items {
+				@KartuAntrean(s)
+			}
+		</div>
+		@paginasiAntrean(d)
+	}
+}
+
+templ paginasiAntrean(d view.AdminAntreanData) {
+	if d.TotalPages > 1 {
+		<nav class="mt-4 flex items-center justify-between gap-3" aria-label="Paginasi antrean">
+			if d.AdaSebelum() {
+				<a href={ templ.SafeURL(d.URLHalaman(d.HalamanSebelum())) } class="btn btn-secondary btn-sm">
+					@components.Icon("panah-kiri", "h-4 w-4")
+					Sebelumnya
+				</a>
+			} else {
+				<span></span>
+			}
+			<span class="text-xs tabular-nums" style="color: var(--text-muted)">
+				Halaman { strconv.Itoa(d.Page) } dari { strconv.Itoa(d.TotalPages) }
+			</span>
+			if d.AdaSesudah() {
+				<a href={ templ.SafeURL(d.URLHalaman(d.HalamanSesudah())) } class="btn btn-secondary btn-sm">
+					Berikutnya
+					@components.Icon("panah-kanan", "h-4 w-4")
+				</a>
+			} else {
+				<span></span>
+			}
+		</nav>
+	}
+}
+
+func jumlahAntrean(total int) string {
+	if total == 0 {
+		return "Tidak ada listing menunggu"
+	}
+	return fmt.Sprintf("%d listing menunggu peninjauan", total)
+}

@@ -1,0 +1,13 @@
+.git
+.gitignore
+.env
+.env.*
+!.env.example
+node_modules
+backups
+tmp
+*.log
+web/static/css/app.css
+docker-compose*.yml
+Makefile
+README.md

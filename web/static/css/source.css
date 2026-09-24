@@ -1,0 +1,1296 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ==========================================================================
+   Font self-host. Keduanya variable font sehingga satu berkas melayani
+   seluruh rentang bobot tanpa permintaan jaringan tambahan.
+   ========================================================================== */
+
+@font-face {
+  font-family: 'Bricolage Grotesque';
+  src: url('/static/fonts/bricolage-grotesque-latin.woff2') format('woff2');
+  font-weight: 400 800;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+2000-206F, U+20AC, U+2122;
+}
+
+@font-face {
+  font-family: 'Plus Jakarta Sans';
+  src: url('/static/fonts/plus-jakarta-sans-latin.woff2') format('woff2');
+  font-weight: 400 800;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+2000-206F, U+20AC, U+2122;
+}
+
+@font-face {
+  font-family: 'Plus Jakarta Sans';
+  src: url('/static/fonts/plus-jakarta-sans-latin-italic.woff2') format('woff2');
+  font-weight: 400 600;
+  font-style: italic;
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+2000-206F, U+20AC, U+2122;
+}
+
+/* ==========================================================================
+   Token warna. Semua warna di aplikasi mengacu ke variabel ini —
+   tidak ada nilai heksadesimal yang ditulis langsung di markup.
+   ========================================================================== */
+
+@layer base {
+  /* Elemen ber-x-cloak disembunyikan sampai Alpine selesai memproses halaman,
+     supaya kolom yang seharusnya tersembunyi tidak sempat berkedip. */
+  [x-cloak] {
+    display: none !important;
+  }
+
+  /* Blok :root dan .dark (token warna & bayangan) dihasilkan Tailwind dari
+     web/static/design/tokens.json — sumber tunggal yang juga dipakai aplikasi
+     Android. Jangan tulis variabel warna di sini. */
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background-color: var(--bg);
+    color: var(--text);
+    font-family: theme('fontFamily.sans');
+    font-size: 15px;
+    line-height: 24px;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Transisi warna saat berpindah mode terang/gelap. Dimatikan sementara
+     saat halaman pertama kali dimuat (lihat .theme-loading di app.js). */
+  body,
+  header,
+  nav,
+  aside,
+  section,
+  article,
+  footer,
+  input,
+  select,
+  textarea,
+  button,
+  .surface-panel {
+    transition: background-color 220ms cubic-bezier(0.22, 1, 0.36, 1),
+      border-color 220ms cubic-bezier(0.22, 1, 0.36, 1),
+      color 160ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .theme-loading * {
+    transition: none !important;
+  }
+
+  h1, h2, h3, h4 {
+    font-family: theme('fontFamily.display');
+    font-weight: 700;
+    /* Optical sizing dipakai agar judul besar tetap proporsional. */
+    font-optical-sizing: auto;
+    color: var(--text);
+  }
+
+  ::selection {
+    background: var(--primary-soft-strong);
+    color: var(--text);
+  }
+
+  :focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--primary-solid);
+    border-radius: 6px;
+  }
+
+  /* Hilangkan spinner input angka pada form harga. */
+  input[type='number']::-webkit-outer-spin-button,
+  input[type='number']::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+/* ==========================================================================
+   Komponen. Gradasi hanya muncul di tiga tempat: tombol utama, garis tab aktif,
+   dan indikator navigasi bawah. Tidak pernah sebagai latar blok besar.
+   ========================================================================== */
+
+@layer components {
+  .container-app {
+    @apply mx-auto w-full max-w-content px-4;
+  }
+
+  /* ---------- tombol ---------- */
+
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded font-sans text-sm font-semibold;
+    @apply px-4 py-2 transition-colors duration-150;
+    min-height: 40px;
+  }
+
+  .btn-primary {
+    color: var(--primary-contrast);
+    background-image: linear-gradient(103deg, var(--primary-from), var(--primary-to));
+    box-shadow: var(--shadow-subtle);
+  }
+
+  .btn-primary:hover {
+    filter: saturate(1.08) brightness(1.04);
+  }
+
+  .btn-primary:active {
+    filter: brightness(0.96);
+  }
+
+  .btn-secondary {
+    color: var(--text);
+    background-color: var(--surface-raised);
+    border: 1px solid var(--border);
+  }
+
+  .btn-secondary:hover {
+    border-color: var(--border-strong);
+    background-color: var(--surface);
+  }
+
+  .btn-ghost {
+    color: var(--text-muted);
+  }
+
+  .btn-ghost:hover {
+    color: var(--text);
+    background-color: var(--surface);
+  }
+
+  .btn-danger {
+    color: var(--danger);
+    border: 1px solid var(--border);
+    background-color: var(--surface-raised);
+  }
+
+  .btn-danger:hover {
+    border-color: var(--danger);
+  }
+
+  /* Tombol WhatsApp memakai warna merek WhatsApp, bukan warna aksen aplikasi,
+     supaya langsung dikenali sebagai jalur kontak. */
+  .btn-whatsapp {
+    color: #ffffff;
+    background-color: #1faa59;
+  }
+
+  .btn-whatsapp:hover {
+    background-color: #178c49;
+  }
+
+  .btn-lg {
+    @apply px-6 text-base;
+    min-height: 48px;
+  }
+
+  .btn-sm {
+    @apply px-3 text-xs;
+    min-height: 32px;
+  }
+
+  .btn[disabled],
+  .btn[aria-disabled='true'] {
+    @apply cursor-not-allowed opacity-50;
+  }
+
+  /* ---------- form ---------- */
+
+  .field-label {
+    @apply mb-1 block text-sm font-semibold;
+    color: var(--text);
+  }
+
+  .field-hint {
+    @apply mt-1 block text-xs;
+    color: var(--text-muted);
+  }
+
+  .field-error {
+    @apply mt-1 flex items-start gap-1 text-xs font-medium;
+    color: var(--danger);
+  }
+
+  .input {
+    @apply block w-full rounded-md px-3 py-2 text-base;
+    background-color: var(--surface-raised);
+    border: 1px solid var(--border);
+    color: var(--text);
+    min-height: 44px; /* target sentuh nyaman di layar 375px */
+  }
+
+  .input::placeholder {
+    color: var(--text-subtle);
+  }
+
+  .input:hover {
+    border-color: var(--border-strong);
+  }
+
+  .input:focus {
+    outline: none;
+    border-color: var(--primary-solid);
+    box-shadow: 0 0 0 3px var(--primary-soft-strong);
+  }
+
+  .input[aria-invalid='true'] {
+    border-color: var(--danger);
+  }
+
+  .input-textarea {
+    min-height: 120px;
+    @apply py-3;
+    line-height: 24px;
+  }
+
+  select.input {
+    @apply appearance-none pr-10;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+  }
+
+  .dark select.input {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  }
+
+  /* ---------- permukaan ---------- */
+
+  .surface-panel {
+    background-color: var(--surface-raised);
+    border: 1px solid var(--border);
+    @apply rounded-lg;
+  }
+
+  .divider {
+    border-top: 1px solid var(--border);
+  }
+
+  /* ---------- chip filter kategori ---------- */
+
+  .chip {
+    @apply inline-flex shrink-0 items-center gap-2 rounded-full px-3 py-1.5 text-sm font-medium;
+    color: var(--text-muted);
+    background-color: var(--surface);
+    border: 1px solid transparent;
+    min-height: 36px;
+    transition: color 150ms, background-color 150ms, border-color 150ms;
+  }
+
+  .chip:hover {
+    color: var(--text);
+    border-color: var(--border);
+  }
+
+  /* Chip aktif memakai warna aksen tipis, bukan blok warna penuh. */
+  .chip[aria-pressed='true'],
+  .chip.is-active {
+    color: var(--primary-solid);
+    background-color: var(--primary-soft);
+    border-color: var(--primary-soft-strong);
+  }
+
+  /* ---------- tab dengan garis gradasi ---------- */
+
+  .tab {
+    @apply relative inline-flex items-center px-1 py-3 text-sm font-semibold;
+    color: var(--text-muted);
+  }
+
+  .tab.is-active {
+    color: var(--text);
+  }
+
+  .tab.is-active::after {
+    content: '';
+    @apply absolute inset-x-0 bottom-0 h-0.5 rounded-full;
+    background-image: linear-gradient(90deg, var(--primary-from), var(--primary-to));
+  }
+
+  /* ---------- navigasi bawah (mobile) ---------- */
+
+  .bottom-nav {
+    background-color: var(--nav-blur);
+    backdrop-filter: saturate(180%) blur(12px);
+    border-top: 1px solid var(--border);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .bottom-nav-item {
+    @apply relative flex flex-1 flex-col items-center justify-center gap-1 py-2 text-2xs font-semibold;
+    color: var(--text-muted);
+    min-height: var(--ukuran-nav-bawah-tinggi);
+  }
+
+  .bottom-nav-item.is-active {
+    color: var(--primary-solid);
+  }
+
+  /* Garis gradasi tipis menandai tab aktif — satu-satunya gradasi di navigasi. */
+  .bottom-nav-item.is-active::before {
+    content: '';
+    @apply absolute inset-x-5 top-0 h-0.5 rounded-full;
+    background-image: linear-gradient(90deg, var(--primary-from), var(--primary-to));
+  }
+
+  /* ---------- tombol melayang & sheet menu utama ----------
+     Padanan Flutter: FloatingActionButton + showModalBottomSheet. Semua
+     ukuran dari tokens.json (--ukuran-*), supaya kedua platform sama persis.
+     Di ponsel sheet naik dari bawah; di desktop menjadi kartu di dekat tombol. */
+
+  .fab {
+    position: fixed;
+    right: var(--ukuran-fab-jarak-tepi);
+    bottom: calc(var(--ukuran-nav-bawah-tinggi) + var(--ukuran-fab-jarak-tepi) + env(safe-area-inset-bottom));
+    z-index: 45;
+    width: var(--ukuran-fab);
+    height: var(--ukuran-fab);
+    @apply inline-flex items-center justify-center rounded-full;
+    color: var(--primary-contrast);
+    background-image: linear-gradient(103deg, var(--primary-from), var(--primary-to));
+    box-shadow: var(--shadow-pop);
+    transition: transform 200ms cubic-bezier(0.22, 1, 0.36, 1), opacity 200ms;
+  }
+
+  .fab:hover {
+    transform: translateY(-2px);
+  }
+
+  .fab:active {
+    transform: scale(0.96);
+  }
+
+  /* Tombol minggir saat pengguna mengetik — ia tidak boleh menutupi kolom
+     yang sedang diisi — dan saat sheet-nya sendiri terbuka. Tanpa JavaScript. */
+  body:has(input:focus, textarea:focus, select:focus) .fab,
+  html:has(.sheet[open]) .fab {
+    opacity: 0;
+    pointer-events: none;
+    transform: scale(0.9);
+  }
+
+  @media (min-width: 768px) {
+    .fab {
+      right: var(--ukuran-fab-jarak-tepi-desktop);
+      bottom: var(--ukuran-fab-jarak-tepi-desktop);
+    }
+  }
+
+  .sheet {
+    position: fixed;
+    inset: auto 0 0 0;
+    margin: 0;
+    width: 100%;
+    max-width: 100%;
+    max-height: var(--ukuran-sheet-tinggi-maks);
+    padding: 0;
+    border: 0;
+    border-radius: var(--ukuran-sheet-radius-atas) var(--ukuran-sheet-radius-atas) 0 0;
+    color: var(--text);
+    background-color: var(--surface-raised);
+    box-shadow: var(--shadow-pop);
+    overflow: auto;
+    overscroll-behavior: contain;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .sheet::backdrop {
+    /* ::backdrop tidak mewarisi variabel :root di semua peramban, jadi
+       nilainya ditulis langsung: warna latar mode gelap, 55%. */
+    background-color: rgba(11, 11, 18, 0.55);
+  }
+
+  .sheet[open] {
+    animation: sheet-naik 260ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  @keyframes sheet-naik {
+    from {
+      transform: translateY(24px);
+      opacity: 0;
+    }
+  }
+
+  /* Halaman di belakang tidak ikut menggulir saat sheet terbuka. */
+  html:has(.sheet[open]) {
+    overflow: hidden;
+  }
+
+  @media (min-width: 768px) {
+    .sheet {
+      inset: auto var(--ukuran-fab-jarak-tepi-desktop) calc(var(--ukuran-fab) + var(--ukuran-fab-jarak-tepi-desktop) + 12px) auto;
+      width: var(--ukuran-sheet-lebar-desktop);
+      max-height: min(80vh, 640px);
+      border-radius: 12px;
+      border: 1px solid var(--border);
+    }
+  }
+
+  .sheet-item {
+    @apply flex w-full items-center gap-3 rounded px-3 py-2 text-left text-sm;
+    min-height: var(--ukuran-sentuh-min);
+    color: var(--text);
+    transition: background-color 120ms;
+  }
+
+  .sheet-item:hover,
+  .sheet-item:focus-visible {
+    background-color: var(--surface);
+  }
+
+  .sheet-item.is-utama {
+    color: var(--primary-contrast);
+    background-image: linear-gradient(103deg, var(--primary-from), var(--primary-to));
+  }
+
+  .sheet-item.is-utama .sheet-ikon {
+    color: var(--primary-contrast);
+    background-color: rgba(255, 255, 255, 0.16);
+  }
+
+  .sheet-item.is-utama .sheet-keterangan {
+    color: var(--primary-contrast);
+    opacity: 0.85;
+  }
+
+  .sheet-ikon {
+    @apply inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md;
+    color: var(--primary-solid);
+    background-color: var(--surface);
+  }
+
+  .sheet-keterangan {
+    @apply block text-xs;
+    color: var(--text-muted);
+  }
+
+  /* ---------- halaman Tentang & Panduan ----------
+     Daftar isi lengket di desktop, baris chip di ponsel; FAQ memakai
+     <details> tanpa JavaScript. Anchor diberi ruang di atas agar judulnya
+     tidak tertutup header lengket. */
+
+  .panduan-bagian {
+    scroll-margin-top: 80px;
+  }
+
+  .toc-item {
+    @apply block rounded px-3 py-1.5 text-sm;
+    color: var(--text-muted);
+  }
+
+  .toc-item:hover {
+    color: var(--text);
+    background-color: var(--surface);
+  }
+
+  .stat-tile {
+    @apply rounded-lg p-4;
+    background-color: var(--surface-raised);
+    border: 1px solid var(--border);
+  }
+
+  .stat-angka {
+    @apply font-display text-3xl font-extrabold tabular-nums;
+    background-image: linear-gradient(103deg, var(--primary-from), var(--primary-to));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .langkah {
+    @apply relative flex gap-3;
+  }
+
+  .langkah-nomor {
+    @apply inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-bold;
+    color: var(--primary-solid);
+    background-color: var(--primary-soft);
+  }
+
+  .faq {
+    border-top: 1px solid var(--border);
+  }
+
+  .faq > summary {
+    @apply flex cursor-pointer list-none items-center justify-between gap-4 py-3 text-sm font-semibold;
+    min-height: var(--ukuran-sentuh-min);
+  }
+
+  .faq > summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .faq > summary::after {
+    content: '+';
+    @apply shrink-0 text-lg font-normal;
+    color: var(--text-subtle);
+  }
+
+  .faq[open] > summary::after {
+    content: '–';
+  }
+
+  .faq > p {
+    @apply pb-4 text-sm;
+    color: var(--text-muted);
+  }
+
+  /* ---------- kartu listing jasa ---------- */
+
+  .listing-card {
+    @apply relative flex flex-col overflow-hidden rounded-lg;
+    background-color: var(--surface-raised);
+    border: 1px solid var(--border);
+    transition: border-color 180ms cubic-bezier(0.22, 1, 0.36, 1),
+      transform 180ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .listing-card:hover {
+    border-color: var(--border-strong);
+    transform: translateY(-2px);
+  }
+
+  .listing-card:hover .listing-card-title {
+    color: var(--primary-solid);
+  }
+
+  .listing-card-media {
+    @apply relative w-full overflow-hidden;
+    aspect-ratio: 4 / 3;
+    background-color: var(--surface);
+  }
+
+  .listing-card-title {
+    @apply font-sans font-semibold;
+    color: var(--text);
+    transition: color 150ms;
+    /* Judul dipotong dua baris agar tinggi kartu seragam dalam grid. */
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .clamp-1 {
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .clamp-3 {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  /* ---------- galeri foto tanpa JavaScript ----------
+     Setiap foto dipasangkan dengan satu radio tersembunyi. Foto yang tampil
+     dan thumbnail yang tersorot ditentukan sepenuhnya oleh :checked, sehingga
+     galeri tetap bekerja walau skrip gagal dimuat. */
+
+  .galeri-panggung {
+    display: grid;
+  }
+
+  /* Semua foto ditumpuk di sel grid yang sama agar tinggi panggung stabil. */
+  .galeri-foto {
+    grid-area: 1 / 1;
+    visibility: hidden;
+  }
+
+  .galeri-thumb {
+    border: 1px solid var(--border);
+    opacity: 0.6;
+    transition: opacity 150ms, border-color 150ms;
+  }
+
+  .galeri-thumb:hover {
+    opacity: 0.85;
+  }
+
+  .galeri input:nth-of-type(1):checked ~ .galeri-panggung .galeri-foto:nth-of-type(1) {
+    visibility: visible;
+  }
+
+  .galeri input:nth-of-type(1):checked ~ div .galeri-thumb:nth-of-type(1) {
+    opacity: 1;
+    border-color: var(--primary-solid);
+    border-width: 2px;
+  }
+
+  .galeri input:nth-of-type(2):checked ~ .galeri-panggung .galeri-foto:nth-of-type(2) {
+    visibility: visible;
+  }
+
+  .galeri input:nth-of-type(2):checked ~ div .galeri-thumb:nth-of-type(2) {
+    opacity: 1;
+    border-color: var(--primary-solid);
+    border-width: 2px;
+  }
+
+  .galeri input:nth-of-type(3):checked ~ .galeri-panggung .galeri-foto:nth-of-type(3) {
+    visibility: visible;
+  }
+
+  .galeri input:nth-of-type(3):checked ~ div .galeri-thumb:nth-of-type(3) {
+    opacity: 1;
+    border-color: var(--primary-solid);
+    border-width: 2px;
+  }
+
+  .galeri input:nth-of-type(4):checked ~ .galeri-panggung .galeri-foto:nth-of-type(4) {
+    visibility: visible;
+  }
+
+  .galeri input:nth-of-type(4):checked ~ div .galeri-thumb:nth-of-type(4) {
+    opacity: 1;
+    border-color: var(--primary-solid);
+    border-width: 2px;
+  }
+
+  .galeri input:nth-of-type(5):checked ~ .galeri-panggung .galeri-foto:nth-of-type(5) {
+    visibility: visible;
+  }
+
+  .galeri input:nth-of-type(5):checked ~ div .galeri-thumb:nth-of-type(5) {
+    opacity: 1;
+    border-color: var(--primary-solid);
+    border-width: 2px;
+  }
+
+  .galeri input:nth-of-type(6):checked ~ .galeri-panggung .galeri-foto:nth-of-type(6) {
+    visibility: visible;
+  }
+
+  .galeri input:nth-of-type(6):checked ~ div .galeri-thumb:nth-of-type(6) {
+    opacity: 1;
+    border-color: var(--primary-solid);
+    border-width: 2px;
+  }
+
+  .galeri input:nth-of-type(7):checked ~ .galeri-panggung .galeri-foto:nth-of-type(7) {
+    visibility: visible;
+  }
+
+  .galeri input:nth-of-type(7):checked ~ div .galeri-thumb:nth-of-type(7) {
+    opacity: 1;
+    border-color: var(--primary-solid);
+    border-width: 2px;
+  }
+
+  .galeri input:nth-of-type(8):checked ~ .galeri-panggung .galeri-foto:nth-of-type(8) {
+    visibility: visible;
+  }
+
+  .galeri input:nth-of-type(8):checked ~ div .galeri-thumb:nth-of-type(8) {
+    opacity: 1;
+    border-color: var(--primary-solid);
+    border-width: 2px;
+  }
+
+  .galeri input:nth-of-type(9):checked ~ .galeri-panggung .galeri-foto:nth-of-type(9) {
+    visibility: visible;
+  }
+
+  .galeri input:nth-of-type(9):checked ~ div .galeri-thumb:nth-of-type(9) {
+    opacity: 1;
+    border-color: var(--primary-solid);
+    border-width: 2px;
+  }
+
+  .galeri input:nth-of-type(10):checked ~ .galeri-panggung .galeri-foto:nth-of-type(10) {
+    visibility: visible;
+  }
+
+  .galeri input:nth-of-type(10):checked ~ div .galeri-thumb:nth-of-type(10) {
+    opacity: 1;
+    border-color: var(--primary-solid);
+    border-width: 2px;
+  }
+
+  .galeri input:nth-of-type(11):checked ~ .galeri-panggung .galeri-foto:nth-of-type(11) {
+    visibility: visible;
+  }
+
+  .galeri input:nth-of-type(11):checked ~ div .galeri-thumb:nth-of-type(11) {
+    opacity: 1;
+    border-color: var(--primary-solid);
+    border-width: 2px;
+  }
+
+  .galeri input:nth-of-type(12):checked ~ .galeri-panggung .galeri-foto:nth-of-type(12) {
+    visibility: visible;
+  }
+
+  .galeri input:nth-of-type(12):checked ~ div .galeri-thumb:nth-of-type(12) {
+    opacity: 1;
+    border-color: var(--primary-solid);
+    border-width: 2px;
+  }
+
+  /* Fokus keyboard pada radio tersembunyi disalurkan ke thumbnail-nya. */
+  .galeri input:focus-visible + .galeri-panggung,
+  .galeri input:focus-visible ~ div .galeri-thumb {
+    box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--primary-solid);
+  }
+
+  /* ---------- segmented control jenis harga ----------
+     Penyorotan pilihan aktif ditentukan CSS lewat :has(:checked), bukan lewat
+     ekspresi JavaScript, sehingga tidak bergantung pada Alpine. */
+
+  .segmen {
+    border: 1px solid var(--border);
+    background-color: var(--surface-raised);
+    color: var(--text);
+  }
+
+  .segmen:has(input:checked) {
+    border-color: var(--primary-solid);
+    background-color: var(--primary-soft);
+    color: var(--primary-solid);
+  }
+
+  .segmen:has(input:focus-visible) {
+    box-shadow: 0 0 0 3px var(--primary-soft-strong);
+  }
+
+  /* ---------- lain-lain ---------- */
+
+  .skeleton {
+    background-color: var(--surface);
+    @apply animate-pulse rounded;
+  }
+
+  /* Sembunyikan scrollbar pada baris chip yang bisa digeser horizontal. */
+  .scroll-x {
+    @apply flex gap-2 overflow-x-auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .scroll-x::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Indikator proses HTMX: hanya tampil saat request berjalan. */
+  .htmx-indicator {
+    opacity: 0;
+    transition: opacity 150ms;
+  }
+
+  .htmx-request .htmx-indicator,
+  .htmx-request.htmx-indicator {
+    opacity: 1;
+  }
+}
+
+/* ==========================================================================
+   Panel admin. Memakai token warna yang sama dengan sisi publik; yang berbeda
+   hanya kepadatan tata letaknya, karena pekerjaan moderasi bertumpu pada tabel.
+   ========================================================================== */
+
+@layer components {
+  .admin-menu {
+    @apply inline-flex shrink-0 items-center gap-2 rounded-md px-3 py-2 text-sm font-semibold;
+    color: var(--text-muted);
+    transition: color 150ms, background-color 150ms;
+  }
+
+  .admin-menu:hover {
+    color: var(--text);
+    background-color: var(--surface);
+  }
+
+  .admin-menu.is-active {
+    color: var(--primary-solid);
+    background-color: var(--primary-soft);
+  }
+
+  @screen lg {
+    .admin-menu {
+      @apply flex w-full;
+    }
+  }
+
+  /* ---------- tabel data ---------- */
+
+  .tabel {
+    @apply w-full border-collapse text-sm;
+  }
+
+  .tabel thead th {
+    @apply whitespace-nowrap px-3 py-2 text-left text-2xs font-semibold uppercase tracking-wide;
+    color: var(--text-muted);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .tabel tbody td {
+    @apply px-3 py-3 align-middle;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .tabel tbody tr:last-child td {
+    border-bottom: 0;
+  }
+
+  .tabel tbody tr:hover {
+    background-color: var(--surface);
+  }
+
+  /* Baris milik akun yang ditangguhkan diredupkan, tapi tetap terbaca. */
+  .tabel tbody tr.baris-nonaktif td {
+    opacity: 0.62;
+  }
+
+  /* ---------- penanda status ----------
+     Dipakai hemat dan hanya di panel admin, tempat status memang informasi
+     utama yang dicari — bukan ditebar di seluruh antarmuka publik. */
+
+  .tanda {
+    @apply inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5 text-2xs font-semibold;
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    background-color: var(--surface);
+  }
+
+  .tanda-sorot {
+    color: var(--primary-solid);
+    background-color: var(--primary-soft);
+    border-color: var(--primary-soft-strong);
+  }
+
+  .tanda-bahaya {
+    color: var(--danger);
+    border-color: var(--danger);
+    background-color: transparent;
+  }
+
+  .tanda-baik {
+    color: var(--positive);
+    border-color: var(--positive);
+    background-color: transparent;
+  }
+
+  /* ---------- kotak statistik ---------- */
+
+  .statistik {
+    @apply flex flex-col gap-1 rounded-lg p-4;
+    background-color: var(--surface-raised);
+    border: 1px solid var(--border);
+  }
+
+  /* ---------- panel aksi ringkas ----------
+     <details> dipakai agar form alasan penangguhan bisa dibuka-tutup
+     tanpa JavaScript sama sekali.
+
+     Catatan: isi panel ini sengaja TIDAK diposisikan absolute. Tabel dibungkus
+     .overflow-x-auto, dan overflow-x: auto membuat overflow-y ikut bernilai
+     auto — panel absolut akan terpotong di baris-baris bawah tabel. */
+
+  .aksi-lipat > summary {
+    @apply inline-flex cursor-pointer items-center gap-1 rounded px-2 py-1 text-xs font-semibold;
+    color: var(--danger);
+    list-style: none;
+  }
+
+  .aksi-lipat > summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .aksi-lipat[open] > summary {
+    color: var(--text-muted);
+  }
+}
+
+@layer components {
+  /* Bintang penilaian.
+     Seluruh keadaannya ditentukan CSS lewat :checked dan :hover — tanpa
+     JavaScript sama sekali, sehingga tetap berfungsi bila skrip gagal dimuat.
+
+     Urutan DOM-nya 5..1 lalu dibalik secara visual dengan row-reverse. Berkat
+     itu "bintang terpilih beserta semua bintang sebelumnya" bisa diselesaikan
+     kombinator saudara biasa (~), yang jauh lebih tepercaya daripada
+     :has(~ …) yang invalidasinya sempat meleset di bintang terakhir. */
+  .bintang-baris {
+    display: flex;
+    flex-direction: row-reverse;
+    justify-content: flex-end;
+    gap: 4px;
+  }
+
+  .bintang-pilih {
+    color: var(--border-strong);
+    transition: color 120ms;
+  }
+
+  .bintang-baris input:checked ~ .bintang-pilih {
+    color: var(--star);
+  }
+
+  /* Saat kursor menyorot, pratinjau menggantikan tampilan pilihan tersimpan. */
+  .bintang-baris:hover input:checked ~ .bintang-pilih {
+    color: var(--border-strong);
+  }
+
+  .bintang-baris .bintang-pilih:hover,
+  .bintang-baris .bintang-pilih:hover ~ .bintang-pilih {
+    color: var(--star);
+  }
+
+  .bintang-baris input:focus-visible + .bintang-pilih {
+    outline: 2px solid var(--primary-solid);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+}
+
+@layer components {
+  /* ---------- hero beranda ----------
+     Hero punya dua wujud. Tanpa gambar latar, ia tetap seperti semula:
+     tipografi di atas latar polos. Dengan gambar latar, foto ditempatkan di
+     lapisan terpisah di bawah lapisan gelap, bukan sebagai background milik
+     teks — supaya kekuatan overlay bisa diatur admin tanpa menyentuh warna
+     teksnya sama sekali. */
+  .hero {
+    position: relative;
+    isolation: isolate;
+  }
+
+  .hero-gambar {
+    position: absolute;
+    inset: 0;
+    z-index: -2;
+    background-position: center;
+    background-size: cover;
+    background-repeat: no-repeat;
+  }
+
+  /* Lapisan gelap. Gradasinya lebih pekat di bawah karena di situlah teks dan
+     kolom pencarian berada; bagian atas dibiarkan lebih terbuka supaya fotonya
+     masih terbaca sebagai foto. */
+  .hero-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background-image: linear-gradient(
+      180deg,
+      rgb(4 8 20 / 0.55) 0%,
+      rgb(4 8 20 / 0.8) 55%,
+      rgb(4 8 20 / 0.95) 100%
+    );
+  }
+
+  /* Keadaan bawaan hero: mengikuti variabel tema seperti sebelumnya. Kelas
+     inilah yang kemudian ditimpa ketika ada gambar latar, sehingga tidak ada
+     satu pun warna teks hero yang ditulis sebagai style sebaris. */
+  .hero-judul-aksen {
+    background-image: linear-gradient(103deg, var(--primary-from), var(--primary-to));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .hero-teks-lembut {
+    color: var(--text-muted);
+  }
+
+  .hero-teks-samar {
+    color: var(--text-subtle);
+  }
+
+  /* Di atas foto, seluruh teks hero dipaksa terang — variabel tema tidak
+     dipakai di sini karena latarnya selalu gelap, baik pada tema terang
+     maupun gelap. */
+  .hero-bergambar {
+    color: #f8fafc;
+  }
+
+  .hero-bergambar .hero-judul-aksen {
+    background-image: linear-gradient(103deg, #a5b4fc, #7dd3fc);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .hero-bergambar .hero-teks-lembut {
+    color: rgb(226 232 240 / 0.92);
+  }
+
+  .hero-bergambar .hero-teks-samar {
+    color: rgb(203 213 225 / 0.78);
+  }
+
+  /* Warna yang ditulis langsung pada elemen tidak ikut mewarisi warna induk,
+     jadi elemen-elemen itu harus disebut satu per satu. Yang perlu ditimpa
+     hanya bagian yang benar-benar duduk di atas foto; isi dropdown pemilih
+     lokasi punya latarnya sendiri dan sengaja dibiarkan mengikuti tema. */
+  .hero-bergambar h1 {
+    color: inherit;
+  }
+
+  /* Label lokasi duduk paling atas di hero, tepat di bagian foto yang paling
+     sering gelap, jadi di sini ia putih penuh — bukan abu-abu seperti di
+     halaman lain. Warnanya harus berupa kelas, bukan style sebaris: style
+     sebaris mengalahkan penimpaan apa pun dan teksnya akan tetap abu-abu. */
+  .pemilih-lokasi-ringkas {
+    color: var(--text-muted);
+  }
+
+  .pemilih-lokasi-ubah {
+    color: var(--primary-solid);
+  }
+
+  .hero-bergambar .pemilih-lokasi-ringkas {
+    color: #ffffff;
+  }
+
+  .hero-bergambar .pemilih-lokasi-ubah {
+    color: #c7d2fe;
+  }
+
+  /* ---------- lencana unduh aplikasi ----------
+     Bentuk lencananya mengikuti pola tombol unduh yang sudah dikenal: gelap,
+     sudut membulat, logo di kiri, dua baris teks di kanan. */
+  .lencana-aplikasi {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 16px 8px 14px;
+    border-radius: 10px;
+    border: 1px solid rgb(248 250 252 / 0.28);
+    background-color: #0b1020;
+    color: #f8fafc;
+    text-decoration: none;
+    transition:
+      background-color 140ms,
+      border-color 140ms;
+  }
+
+  .lencana-aplikasi:hover {
+    background-color: #161d33;
+    border-color: rgb(248 250 252 / 0.5);
+  }
+
+  .lencana-aplikasi-baris1 {
+    display: block;
+    font-size: 10px;
+    line-height: 1.1;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgb(203 213 225 / 0.85);
+  }
+
+  .lencana-aplikasi-baris2 {
+    display: block;
+    font-size: 15px;
+    font-weight: 700;
+    line-height: 1.2;
+  }
+}
+
+@layer components {
+  /* Pemicu formulir order berupa <summary> yang bergaya tombol. Penanda
+     segitiga bawaan disembunyikan di kedua mesin render; tanpa ini Safari
+     tetap menggambarnya di dalam tombol. */
+  .grup-order > summary {
+    display: inline-flex;
+  }
+
+  .grup-order > summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .grup-order > summary::marker {
+    content: '';
+  }
+}
+
+@layer components {
+  /* Pratinjau hero di panel admin memakai kelas .hero-gambar dan .hero-overlay
+     yang sama dengan beranda, hanya dikecilkan. */
+  .hero-pratinjau {
+    position: relative;
+    isolation: isolate;
+    display: flex;
+    align-items: flex-end;
+    overflow: hidden;
+    border-radius: 6px;
+    min-height: 140px;
+    padding: 12px;
+    background-color: var(--surface);
+  }
+
+  .hero-pratinjau-teks {
+    font-weight: 700;
+    font-size: 14px;
+    line-height: 1.25;
+    color: #f8fafc;
+  }
+}
+
+@layer components {
+  /* Lencana tanpa tautan: tampil sama, tetapi tidak berperilaku seperti
+     tombol — tanpa kursor pointer dan tanpa perubahan saat disorot. */
+  .lencana-aplikasi-mati {
+    cursor: default;
+  }
+
+  .lencana-aplikasi-mati:hover {
+    background-color: #0b1020;
+    border-color: rgb(248 250 252 / 0.28);
+  }
+}
+
+@layer components {
+  /* Pratinjau materi iklan. Tingginya dikunci supaya baris slot tidak
+     melompat-lompat mengikuti proporsi gambar yang diunggah. */
+  .pratinjau-iklan {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    border-radius: 6px;
+    min-height: 88px;
+    padding: 8px;
+    background-color: var(--surface);
+  }
+
+  .pratinjau-iklan-gambar {
+    max-height: 88px;
+    width: auto;
+    object-fit: contain;
+  }
+}
+
+@layer components {
+  /* ---------- penanda kartu ----------
+     Urutannya penting: .is-sorot ditulis setelah .is-sorot-penyedia supaya
+     kartu yang sekaligus merupakan sorotan jasa dan milik penyedia pilihan
+     tampil sebagai sorotan jasa. Keduanya punya kekhususan yang sama, jadi
+     yang terakhir menang — itu satu-satunya hal yang menentukannya, dan
+     karena itu kedua blok ini tidak boleh ditukar urutannya. */
+  .is-sorot-penyedia {
+    background-color: var(--sorot-penyedia-bg);
+    border-color: var(--sorot-penyedia-border);
+  }
+
+  .is-sorot {
+    background-color: var(--sorot-bg);
+    border-color: var(--sorot-border);
+  }
+
+  /* Tanpa ini border-color bawaan .listing-card:hover menghapus penandanya. */
+  .listing-card.is-sorot-penyedia:hover {
+    border-color: var(--primary-solid);
+  }
+
+  .listing-card.is-sorot:hover {
+    border-color: #c99b3d;
+  }
+
+  /* Pita tipis di tepi atas kartu. Warna saja tidak cukup sebagai penanda —
+     terlalu samar bagi mata yang sulit membedakan rona — jadi pita ini
+     selalu didampingi teks tersembunyi untuk pembaca layar. */
+  .pita-sorot,
+  .pita-sorot-penyedia {
+    position: absolute;
+    inset-inline: 0;
+    top: 0;
+    height: 2px;
+    z-index: 1;
+  }
+
+  .pita-sorot {
+    background-image: linear-gradient(90deg, var(--sorot-pita-dari), var(--sorot-pita-ke));
+  }
+
+  .pita-sorot-penyedia {
+    background-image: linear-gradient(90deg, var(--primary-from), var(--primary-to));
+  }
+}
+
+@layer components {
+  /* ---------- iklan ----------
+     Bentuknya sengaja berbeda dari kartu jasa: melebar penuh, proporsi bebas
+     mengikuti materinya, dan bergaris putus-putus. Pengunjung harus bisa
+     membedakannya dari hasil pencarian hanya dengan melirik. */
+  .iklan {
+    position: relative;
+    display: block;
+    overflow: hidden;
+    border-radius: 8px;
+    border: 1px dashed var(--border-strong);
+    background-color: var(--surface);
+  }
+
+  .iklan-label {
+    position: absolute;
+    left: 8px;
+    top: 8px;
+    z-index: 1;
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    background-color: var(--nav-blur);
+    backdrop-filter: blur(6px);
+  }
+
+  .iklan-isi {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 28px 12px 12px;
+    text-decoration: none;
+    color: var(--text-muted);
+  }
+
+  a.iklan-isi:hover .iklan-teks {
+    color: var(--primary-solid);
+  }
+
+  .iklan-gambar {
+    display: block;
+    width: 100%;
+    height: auto;
+    max-height: 240px;
+    object-fit: contain;
+    border-radius: 4px;
+  }
+
+  .iklan-teks {
+    font-size: 14px;
+    font-weight: 600;
+    text-align: center;
+    transition: color 150ms;
+  }
+
+  /* Di kolom samping halaman detail, ruangnya sempit dan tinggi materinya
+     dibatasi lebih ketat supaya tidak mendorong panel kontak keluar layar. */
+  .iklan-samping .iklan-gambar {
+    max-height: 320px;
+  }
+}

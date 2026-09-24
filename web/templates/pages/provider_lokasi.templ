@@ -1,0 +1,125 @@
+package pages
+
+import (
+	"strconv"
+
+	"github.com/hermansyah/adojobsid/internal/view"
+	"github.com/hermansyah/adojobsid/web/templates/components"
+	"github.com/hermansyah/adojobsid/web/templates/layout"
+)
+
+// ProviderLokasi adalah form titik lokasi dan radius layanan penyedia.
+// Peta dimuat lewat Leaflet yang di-self-host; konfigurasinya dibaca dari
+// atribut data- oleh app.js, bukan dari skrip sebaris.
+templ ProviderLokasi(d view.ProviderLokasiData) {
+	@layout.Base(d.Base) {
+		<div class="container-app py-6 md:py-10">
+			<div class="mx-auto max-w-2xl">
+				<a href="/dasbor" class="mb-4 inline-flex items-center gap-1 text-sm font-medium" style="color: var(--text-muted)">
+					@components.Icon("panah-kiri", "h-4 w-4")
+					Kembali ke dasbor
+				</a>
+				<h1 class="font-display text-2xl font-extrabold sm:text-3xl">Lokasi layanan</h1>
+				<p class="mt-2 max-w-prose text-sm" style="color: var(--text-muted)">
+					Tentukan titik tempat Anda beroperasi dan sejauh mana Anda bersedia
+					datang. Pelanggan melihat jarak Anda dari lokasi mereka.
+				</p>
+				@components.FlashMessage(d.Flash)
+				<form action="/provider/lokasi" method="post" class="mt-6" novalidate>
+					<div class="sm:surface-panel sm:p-6">
+						<div class="mb-4">
+							<span class="field-label">Titik lokasi</span>
+							<p class="field-hint mb-2">
+								Ketuk peta untuk menaruh pin, atau geser pin yang sudah ada.
+							</p>
+							<!-- Tinggi peta ditetapkan karena Leaflet butuh wadah berukuran pasti. -->
+							<div
+								id="peta-lokasi"
+								class="w-full overflow-hidden rounded-md"
+								style="height: 320px; border: 1px solid var(--border); background-color: var(--surface)"
+								data-peta={ d.PetaConfig() }
+								data-peta-lat="latitude"
+								data-peta-lng="longitude"
+								data-peta-radius={ strconv.Itoa(d.RadiusSaatIni()) }
+							></div>
+							<div class="mt-2 flex flex-wrap items-center gap-2">
+								<button type="button" class="btn btn-secondary btn-sm" data-gps-untuk="peta-lokasi">
+									@components.Icon("lokasi", "h-4 w-4")
+									Pakai lokasi saya
+								</button>
+								<span class="text-xs" style="color: var(--text-subtle)">
+									Peta gagal dimuat? Pilih kecamatan di bawah sebagai perkiraan.
+								</span>
+							</div>
+							<input type="hidden" id="latitude" name="latitude" value={ d.Form.Value("latitude") }/>
+							<input type="hidden" id="longitude" name="longitude" value={ d.Form.Value("longitude") }/>
+							if d.Form.HasErr("lokasi") {
+								<p class="field-error">
+									@components.Icon("peringatan", "h-3.5 w-3.5 shrink-0 mt-0.5")
+									<span>{ d.Form.Err("lokasi") }</span>
+								</p>
+							}
+						</div>
+						<div class="mb-4">
+							<label for="kecamatan_cepat" class="field-label">Isi cepat dari kecamatan</label>
+							<select id="kecamatan_cepat" class="input" data-isi-kecamatan="peta-lokasi">
+								<option value="">— Pilih kecamatan —</option>
+								for _, k := range d.Kecamatan {
+									<option
+										value={ strconv.FormatFloat(k.Latitude, 'f', 6, 64) + "," + strconv.FormatFloat(k.Longitude, 'f', 6, 64) }
+									>{ k.Nama }</option>
+								}
+							</select>
+							<span class="field-hint">
+								Memindahkan pin ke pusat kecamatan. Geser lagi di peta agar lebih tepat.
+							</span>
+						</div>
+						@components.Field("service_radius_km", "Radius layanan", "Sejauh mana Anda bersedia mendatangi pelanggan.", d.Form.Err("service_radius_km")) {
+							<select
+								id="service_radius_km"
+								name="service_radius_km"
+								class="input"
+								data-radius-untuk="peta-lokasi"
+							>
+								for _, r := range d.PilihanRadius() {
+									if r == d.RadiusSaatIni() {
+										<option value={ strconv.Itoa(r) } selected>{ strconv.Itoa(r) } km</option>
+									} else {
+										<option value={ strconv.Itoa(r) }>{ strconv.Itoa(r) } km</option>
+									}
+								}
+							</select>
+						}
+						@components.Field("address_label", "Keterangan alamat", "Opsional. Contoh: Jl. Hangtuah, dekat Pasar Bengkalis.", d.Form.Err("address_label")) {
+							<input
+								id="address_label"
+								name="address_label"
+								type="text"
+								class="input"
+								value={ d.Form.Value("address_label") }
+								placeholder="Jl. Hangtuah, Bengkalis"
+								maxlength="200"
+							/>
+						}
+					</div>
+					<div class="mt-6 flex flex-col gap-2 sm:flex-row-reverse">
+						<button type="submit" class="btn btn-primary btn-lg sm:min-w-[12rem]">Simpan lokasi</button>
+						<a href="/dasbor" class="btn btn-secondary btn-lg">Batal</a>
+					</div>
+				</form>
+				if d.Profile != nil && d.Profile.PunyaLokasi() {
+					<form action="/provider/lokasi" method="post" class="mt-4">
+						<input type="hidden" name="hapus" value="1"/>
+						<input type="hidden" name="service_radius_km" value={ strconv.Itoa(d.RadiusSaatIni()) }/>
+						<button type="submit" class="btn btn-ghost btn-sm" style="color: var(--danger)">
+							Hapus titik lokasi
+						</button>
+						<span class="ml-1 text-xs" style="color: var(--text-subtle)">
+							Listing Anda tetap tayang, tapi tidak muncul di pencarian berbasis jarak.
+						</span>
+					</form>
+				}
+			</div>
+		</div>
+	}
+}

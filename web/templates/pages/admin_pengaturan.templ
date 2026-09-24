@@ -1,0 +1,480 @@
+package pages
+
+import (
+	"strconv"
+
+	"github.com/hermansyah/adojobsid/internal/model"
+	"github.com/hermansyah/adojobsid/internal/view"
+	"github.com/hermansyah/adojobsid/web/templates/components"
+	"github.com/hermansyah/adojobsid/web/templates/layout"
+)
+
+// AdminPengaturan adalah halaman pengaturan aplikasi.
+// Dibagi menjadi tiga bagian yang masing-masing disimpan terpisah, supaya
+// kesalahan pada satu bagian tidak membatalkan isian bagian lain.
+templ AdminPengaturan(d view.AdminPengaturanData) {
+	@layout.AdminBase(d.AdminBase) {
+		<div class="grid gap-6 lg:grid-cols-2">
+			@BagianUmum(d)
+			@BagianLogo(d)
+		</div>
+		<div class="grid gap-6 lg:grid-cols-2">
+			@BagianHero(d)
+			@BagianAplikasi(d)
+		</div>
+		@BagianLokasi(d)
+		@BagianPromosi(d)
+		@BagianIklan(d)
+	}
+}
+
+// BagianPromosi mengatur pembayaran promosi: sakelar uji coba gratis dan
+// rekening tujuan transfer yang ditampilkan ke pemohon.
+templ BagianPromosi(d view.AdminPengaturanData) {
+	<section class="surface-panel mt-6 p-5" aria-labelledby="judul-promosi">
+		<h2 id="judul-promosi" class="mb-1 text-base font-bold">Pembayaran promosi</h2>
+		<p class="mb-4 text-xs" style="color: var(--text-muted)">
+			Selama uji coba gratis menyala, setiap pengajuan yang disetujui langsung tayang tanpa pembayaran.
+			Mematikannya mewajibkan rekening terisi — pemohon membayar ke sini dan mengunggah buktinya.
+		</p>
+		<form action="/admin/pengaturan/promosi" method="post" novalidate>
+			<label class="mb-4 flex items-start gap-3">
+				<input id="uji_coba_gratis" name="uji_coba_gratis" type="checkbox" value="1" class="mt-0.5 h-4 w-4 rounded-xs" checked?={ d.Pengaturan.Promosi.UjiCobaGratis }/>
+				<span class="text-sm">
+					<span class="font-semibold">Uji coba gratis</span>
+					<span class="mt-0.5 block text-xs" style="color: var(--text-muted)">Harga paket tidak ditagihkan; pengajuan yang disetujui langsung tayang.</span>
+				</span>
+			</label>
+			<div class="grid gap-3 sm:grid-cols-3">
+				@components.Field("bank", "Bank", "", d.Form.Err("bank")) {
+					<input id="bank" name="bank" type="text" class="input" value={ d.Pengaturan.Promosi.Bank } placeholder="BRI"/>
+				}
+				@components.Field("nomor_rekening", "Nomor rekening", "", d.Form.Err("nomor_rekening")) {
+					<input id="nomor_rekening" name="nomor_rekening" type="text" class="input" value={ d.Pengaturan.Promosi.NomorRekening } inputmode="numeric"/>
+				}
+				@components.Field("atas_nama", "Atas nama", "", d.Form.Err("atas_nama")) {
+					<input id="atas_nama" name="atas_nama" type="text" class="input" value={ d.Pengaturan.Promosi.AtasNama }/>
+				}
+			</div>
+			@components.Field("petunjuk_bayar", "Petunjuk tambahan", "Opsional. Tampil di bawah rekening, misalnya cara menulis berita transfer.", d.Form.Err("petunjuk_bayar")) {
+				<input id="petunjuk_bayar" name="petunjuk_bayar" type="text" class="input" value={ d.Pengaturan.Promosi.PetunjukBayar } maxlength="500"/>
+			}
+			<button type="submit" class="btn btn-primary w-full sm:w-auto">Simpan pengaturan promosi</button>
+		</form>
+	</section>
+}
+
+templ BagianUmum(d view.AdminPengaturanData) {
+	<section class="surface-panel p-5" aria-labelledby="judul-umum">
+		<h2 id="judul-umum" class="mb-1 text-base font-bold">Identitas platform</h2>
+		<p class="mb-4 text-xs" style="color: var(--text-muted)">
+			Dipakai di judul halaman, navigasi, dan footer.
+		</p>
+		<form action="/admin/pengaturan/umum" method="post" novalidate>
+			@components.Field("nama_situs", "Nama situs", "", d.Form.Err("nama_situs")) {
+				<input
+					id="nama_situs"
+					name="nama_situs"
+					type="text"
+					class="input"
+					value={ d.Pengaturan.Umum.NamaSitus }
+					required
+				/>
+			}
+			@components.Field("tagline", "Deskripsi beranda", "Tampil di bawah judul pada hasil pencarian Google. Idealnya satu kalimat, maksimal 160 karakter.", d.Form.Err("tagline")) {
+				<input
+					id="tagline"
+					name="tagline"
+					type="text"
+					class="input"
+					value={ d.Pengaturan.Umum.Tagline }
+					maxlength="160"
+				/>
+			}
+			@components.Field("kontak_wa", "WhatsApp pengelola", "Opsional. Kontak bantuan untuk pengguna.", d.Form.Err("kontak_wa")) {
+				<input
+					id="kontak_wa"
+					name="kontak_wa"
+					type="tel"
+					class="input"
+					value={ d.Pengaturan.Umum.KontakWA }
+					placeholder="0812xxxxxxx"
+				/>
+			}
+			@components.Field("teks_footer", "Teks footer", "", d.Form.Err("teks_footer")) {
+				<input
+					id="teks_footer"
+					name="teks_footer"
+					type="text"
+					class="input"
+					value={ d.Pengaturan.Umum.TeksFooter }
+					maxlength="200"
+				/>
+			}
+			<label class="mb-4 flex items-start gap-3">
+				<input
+					id="whatsapp_aktif"
+					name="whatsapp_aktif"
+					type="checkbox"
+					value="1"
+					class="mt-0.5 h-4 w-4 rounded-xs"
+					checked?={ d.Pengaturan.Umum.WhatsappAktif }
+				/>
+				<span class="text-sm">
+					<span class="font-semibold">Tampilkan tombol WhatsApp</span>
+					<span class="mt-0.5 block text-xs" style="color: var(--text-muted)">
+						Saat dimatikan, seluruh percakapan berlangsung di dalam aplikasi.
+						Nomor WhatsApp penyedia tetap tersimpan dan tidak perlu dikumpulkan
+						ulang bila nanti dinyalakan lagi.
+					</span>
+				</span>
+			</label>
+			<button type="submit" class="btn btn-primary w-full">Simpan identitas</button>
+		</form>
+	</section>
+}
+
+templ BagianLogo(d view.AdminPengaturanData) {
+	<section class="surface-panel p-5" aria-labelledby="judul-logo">
+		<h2 id="judul-logo" class="mb-1 text-base font-bold">Logo</h2>
+		<p class="mb-4 text-xs" style="color: var(--text-muted)">
+			PNG, JPG, atau WEBP. Bila kosong, navigasi memakai wordmark tipografis bawaan.
+		</p>
+		<div class="mb-4 flex items-center justify-center rounded-md p-4" style="background-color: var(--surface); min-height: 96px">
+			if d.Pengaturan.Umum.LogoURL != "" {
+				<img src={ d.Pengaturan.Umum.LogoURL } alt="Logo situs" class="max-h-16 w-auto"/>
+			} else {
+				<span class="text-xs" style="color: var(--text-subtle)">Belum ada logo</span>
+			}
+		</div>
+		<form action="/admin/pengaturan/logo" method="post" enctype="multipart/form-data">
+			<label for="logo" class="field-label">Unggah logo baru</label>
+			<input
+				id="logo"
+				name="logo"
+				type="file"
+				accept="image/jpeg,image/png,image/webp"
+				class="input"
+				required
+			/>
+			if d.Form.HasErr("logo") {
+				<p class="field-error">
+					@components.Icon("peringatan", "h-3.5 w-3.5 shrink-0 mt-0.5")
+					<span>{ d.Form.Err("logo") }</span>
+				</p>
+			}
+			<button type="submit" class="btn btn-primary mt-3 w-full">Unggah logo</button>
+		</form>
+		if d.Pengaturan.Umum.LogoURL != "" {
+			<form action="/admin/pengaturan/logo/hapus" method="post" class="mt-2">
+				<button type="submit" class="btn btn-danger w-full">Hapus logo</button>
+			</form>
+		}
+	</section>
+}
+
+templ BagianLokasi(d view.AdminPengaturanData) {
+	<section class="surface-panel mt-6 p-5" aria-labelledby="judul-lokasi">
+		<h2 id="judul-lokasi" class="mb-1 text-base font-bold">Lokasi &amp; jarak</h2>
+		<p class="mb-4 text-xs" style="color: var(--text-muted)">
+			Titik pusat dipakai sebagai acuan awal peta dan bagi pengunjung yang
+			belum menentukan lokasinya sendiri.
+		</p>
+		<form action="/admin/pengaturan/lokasi" method="post" novalidate>
+			<div class="grid gap-4 lg:grid-cols-[1fr_280px]">
+				<div>
+					<span class="field-label">Titik pusat platform</span>
+					<div
+						id="peta-pengaturan"
+						class="w-full overflow-hidden rounded-md"
+						style="height: 280px; border: 1px solid var(--border); background-color: var(--surface)"
+						data-peta={ d.PetaConfigPengaturan() }
+						data-peta-lat="pusat_latitude"
+						data-peta-lng="pusat_longitude"
+					></div>
+					<input
+						type="hidden"
+						id="pusat_latitude"
+						name="pusat_latitude"
+						value={ strconv.FormatFloat(d.Pengaturan.Lokasi.PusatLatitude, 'f', 6, 64) }
+					/>
+					<input
+						type="hidden"
+						id="pusat_longitude"
+						name="pusat_longitude"
+						value={ strconv.FormatFloat(d.Pengaturan.Lokasi.PusatLongitude, 'f', 6, 64) }
+					/>
+					if d.Form.HasErr("pusat") {
+						<p class="field-error">
+							@components.Icon("peringatan", "h-3.5 w-3.5 shrink-0 mt-0.5")
+							<span>{ d.Form.Err("pusat") }</span>
+						</p>
+					}
+				</div>
+				<div>
+					@components.Field("radius_default_km", "Radius bawaan pencarian", "Dipakai saat pengunjung belum memilih radius.", d.Form.Err("radius_default_km")) {
+						<input
+							id="radius_default_km"
+							name="radius_default_km"
+							type="number"
+							inputmode="numeric"
+							class="input"
+							min="1"
+							value={ strconv.Itoa(d.Pengaturan.Lokasi.RadiusDefaultKm) }
+							required
+						/>
+					}
+					@components.Field("radius_maks_km", "Radius maksimum", "Batas atas radius yang boleh dipilih penyedia dan pencari jasa.", d.Form.Err("radius_maks_km")) {
+						<input
+							id="radius_maks_km"
+							name="radius_maks_km"
+							type="number"
+							inputmode="numeric"
+							class="input"
+							min="1"
+							max="500"
+							value={ strconv.Itoa(d.Pengaturan.Lokasi.RadiusMaksKm) }
+							required
+						/>
+					}
+					<button type="submit" class="btn btn-primary w-full">Simpan lokasi</button>
+				</div>
+			</div>
+		</form>
+	</section>
+}
+
+// BagianIklan menyiapkan slot penempatan iklan.
+// Penayangannya belum diaktifkan; di tahap ini admin sudah bisa menyusun
+// isinya lebih dulu.
+templ BagianIklan(d view.AdminPengaturanData) {
+	<section class="surface-panel mt-6 p-5" aria-labelledby="judul-iklan">
+		<div class="mb-4">
+			<h2 id="judul-iklan" class="mb-1 text-base font-bold">Slot iklan</h2>
+			<p class="text-xs" style="color: var(--text-muted)">
+				Materi bawaan per slot: tayang bila tidak ada iklan berbayar yang
+				sedang aktif untuk slot itu, dengan label "Iklan" di atasnya.
+			</p>
+		</div>
+		<div class="flex flex-col gap-4">
+			for _, slot := range d.Pengaturan.Iklan.Slot {
+				@barisSlotIklan(slot, d)
+			}
+		</div>
+	</section>
+}
+
+// barisSlotIklan adalah satu slot dengan satu form dan satu tombol simpan.
+// Teks dan berkas dikirim bersama supaya tidak mungkin lagi memilih gambar
+// lalu menekan tombol simpan yang salah dan kehilangan berkasnya diam-diam.
+templ barisSlotIklan(slot model.SlotIklan, d view.AdminPengaturanData) {
+	<form
+		action={ templ.SafeURL("/admin/pengaturan/iklan/" + slot.Kunci) }
+		method="post"
+		enctype="multipart/form-data"
+		class="rounded-md p-4"
+		style="border: 1px solid var(--border)"
+		novalidate
+	>
+		<div class="mb-3 flex items-center justify-between gap-3">
+			<h3 class="text-sm font-semibold">{ slot.Nama }</h3>
+			<label class="flex items-center gap-2 text-xs font-medium">
+				<input type="checkbox" name="aktif" value="1" class="h-4 w-4 rounded-xs" checked?={ slot.Aktif }/>
+				<span>Aktif</span>
+			</label>
+		</div>
+		<div class="grid gap-3 sm:grid-cols-2">
+			<div>
+				<label for={ "iklan-gambar-" + slot.Kunci } class="field-label">Materi gambar</label>
+				<div class="pratinjau-iklan mb-2">
+					if slot.GambarURL != "" {
+						<img src={ slot.GambarURL } alt={ "Materi iklan " + slot.Nama } class="pratinjau-iklan-gambar"/>
+					} else {
+						<span class="text-xs" style="color: var(--text-subtle)">Belum ada materi</span>
+					}
+				</div>
+				<input
+					id={ "iklan-gambar-" + slot.Kunci }
+					name="gambar"
+					type="file"
+					accept="image/jpeg,image/png,image/webp"
+					class="input"
+				/>
+				<p class="field-hint">JPG, PNG, atau WEBP, maksimal { strconv.FormatInt(d.MaksSizeMB, 10) } MB.</p>
+			</div>
+			<div>
+				<label for={ "iklan-tautan-" + slot.Kunci } class="field-label">URL tujuan</label>
+				<input
+					id={ "iklan-tautan-" + slot.Kunci }
+					name="tautan_url"
+					type="url"
+					class="input"
+					value={ slot.TautanURL }
+					placeholder="https://contoh.co.id"
+				/>
+				if d.Form.HasErr("tautan_" + slot.Kunci) {
+					<p class="field-error">
+						@components.Icon("peringatan", "h-3.5 w-3.5 shrink-0 mt-0.5")
+						<span>{ d.Form.Err("tautan_" + slot.Kunci) }</span>
+					</p>
+				}
+				<label for={ "iklan-teks-" + slot.Kunci } class="field-label mt-3">Teks (bila tanpa gambar)</label>
+				<input
+					id={ "iklan-teks-" + slot.Kunci }
+					name="teks"
+					type="text"
+					class="input"
+					value={ slot.Teks }
+					maxlength="160"
+				/>
+				if d.Form.HasErr("isi_" + slot.Kunci) {
+					<p class="field-error">
+						@components.Icon("peringatan", "h-3.5 w-3.5 shrink-0 mt-0.5")
+						<span>{ d.Form.Err("isi_" + slot.Kunci) }</span>
+					</p>
+				}
+			</div>
+		</div>
+		<div class="mt-3 flex flex-wrap gap-2">
+			<button type="submit" class="btn btn-primary btn-sm">Simpan slot ini</button>
+			if slot.GambarURL != "" {
+				<button
+					type="submit"
+					class="btn btn-danger btn-sm"
+					formaction={ templ.SafeURL("/admin/pengaturan/iklan/" + slot.Kunci + "/gambar/hapus") }
+					formenctype="application/x-www-form-urlencoded"
+				>
+					Hapus materi
+				</button>
+			}
+		</div>
+	</form>
+}
+
+// BagianHero mengatur gambar latar beranda. Gambar dan kepekatan overlay
+// disimpan lewat dua form terpisah supaya menggeser overlay tidak memaksa
+// admin mengunggah ulang fotonya.
+templ BagianHero(d view.AdminPengaturanData) {
+	<section class="surface-panel mt-6 p-5" aria-labelledby="judul-hero">
+		<h2 id="judul-hero" class="mb-1 text-base font-bold">Gambar latar beranda</h2>
+		<p class="mb-4 text-xs" style="color: var(--text-muted)">
+			JPG, PNG, atau WEBP. Disarankan lebar minimal 1600 piksel dan bagian
+			bawahnya tidak ramai, karena di situ judul dan kolom pencarian berada.
+			Bila kosong, beranda memakai latar polos.
+		</p>
+		<div class="hero-pratinjau mb-4">
+			if d.Pengaturan.Tampilan.HeroGambarURL != "" {
+				<div class="hero-gambar" style={ d.GayaPratinjauHero() }></div>
+				<div class="hero-overlay" style={ d.GayaPratinjauOverlay() }></div>
+				<p class="hero-pratinjau-teks">Cari tukang yang benar-benar ada di dekat Anda</p>
+			} else {
+				<p class="text-xs" style="color: var(--text-subtle)">Belum ada gambar latar</p>
+			}
+		</div>
+		<form action="/admin/pengaturan/hero" method="post" enctype="multipart/form-data" class="mb-4">
+			<label for="hero" class="field-label">Unggah gambar baru</label>
+			<input
+				id="hero"
+				name="hero"
+				type="file"
+				accept="image/jpeg,image/png,image/webp"
+				class="input"
+				required
+			/>
+			if d.Form.HasErr("hero") {
+				<p class="field-error">
+					@components.Icon("peringatan", "h-3.5 w-3.5 shrink-0 mt-0.5")
+					<span>{ d.Form.Err("hero") }</span>
+				</p>
+			}
+			<button type="submit" class="btn btn-primary mt-3 w-full">Unggah gambar</button>
+		</form>
+		if d.Pengaturan.Tampilan.HeroGambarURL != "" {
+			<form action="/admin/pengaturan/hero/hapus" method="post">
+				<button type="submit" class="btn btn-danger w-full">Hapus gambar latar</button>
+			</form>
+		}
+	</section>
+}
+
+// BagianAplikasi mengatur kepekatan overlay dan lencana aplikasi mobile.
+// Teks lencananya bisa diubah karena aplikasinya belum terbit: selama tautan
+// Play Store masih kosong, lencananya tampil sebagai pengumuman yang tidak
+// bisa diklik.
+templ BagianAplikasi(d view.AdminPengaturanData) {
+	<section class="surface-panel mt-6 p-5" aria-labelledby="judul-aplikasi">
+		<h2 id="judul-aplikasi" class="mb-1 text-base font-bold">Overlay &amp; aplikasi mobile</h2>
+		<p class="mb-4 text-xs" style="color: var(--text-muted)">
+			Overlay menjaga teks tetap terbaca di atas foto. Naikkan bila fotonya terang.
+		</p>
+		<form action="/admin/pengaturan/tampilan" method="post" novalidate>
+			@components.Field("hero_overlay", "Kepekatan overlay", "Persen, antara "+strconv.Itoa(model.HeroOverlayMin)+" dan "+strconv.Itoa(model.HeroOverlayMaks)+".", d.Form.Err("hero_overlay")) {
+				<input
+					id="hero_overlay"
+					name="hero_overlay"
+					type="number"
+					class="input"
+					value={ strconv.Itoa(d.Pengaturan.Tampilan.HeroOverlay) }
+					min={ strconv.Itoa(model.HeroOverlayMin) }
+					max={ strconv.Itoa(model.HeroOverlayMaks) }
+					step="5"
+					required
+				/>
+			}
+			<hr class="mb-4" style="border-color: var(--border)"/>
+			<label class="mb-4 flex items-start gap-3">
+				<input
+					id="aplikasi_tampil"
+					name="aplikasi_tampil"
+					type="checkbox"
+					value="1"
+					class="mt-0.5 h-4 w-4 rounded-xs"
+					checked?={ d.Pengaturan.Tampilan.AplikasiTampil }
+				/>
+				<span class="text-sm">
+					<span class="font-semibold">Tampilkan lencana aplikasi di beranda</span>
+					<span class="mt-0.5 block text-xs" style="color: var(--text-muted)">
+						Boleh dinyalakan sebelum aplikasinya terbit. Selama tautan di bawah
+						kosong, lencananya tampil sebagai pengumuman dan tidak bisa diklik.
+					</span>
+				</span>
+			</label>
+			<div class="grid gap-3 sm:grid-cols-2">
+				@components.Field("playstore_teks_atas", "Baris atas", "Contoh: Segera hadir di", d.Form.Err("playstore_teks_atas")) {
+					<input
+						id="playstore_teks_atas"
+						name="playstore_teks_atas"
+						type="text"
+						class="input"
+						value={ d.Pengaturan.Tampilan.PlaystoreTeksAtas }
+						maxlength="30"
+					/>
+				}
+				@components.Field("playstore_teks_bawah", "Baris bawah", "Contoh: Google Play", d.Form.Err("playstore_teks_bawah")) {
+					<input
+						id="playstore_teks_bawah"
+						name="playstore_teks_bawah"
+						type="text"
+						class="input"
+						value={ d.Pengaturan.Tampilan.PlaystoreTeksBawah }
+						maxlength="30"
+					/>
+				}
+			</div>
+			@components.Field("playstore_url", "Tautan Google Play", "Kosongkan selama aplikasinya belum terbit.", d.Form.Err("playstore_url")) {
+				<input
+					id="playstore_url"
+					name="playstore_url"
+					type="url"
+					class="input"
+					value={ d.Pengaturan.Tampilan.PlaystoreURL }
+					placeholder="https://play.google.com/store/apps/details?id=..."
+				/>
+			}
+			<div class="mb-4 flex justify-center rounded-md p-4" style="background-color: #0f1526">
+				@components.LencanaPlaystore(d.LencanaPratinjau())
+			</div>
+			<button type="submit" class="btn btn-primary w-full">Simpan tampilan</button>
+		</form>
+	</section>
+}

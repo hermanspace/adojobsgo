@@ -1,0 +1,341 @@
+package pages
+
+import (
+	"fmt"
+	"strconv"
+
+	"github.com/hermansyah/adojobsid/internal/model"
+	"github.com/hermansyah/adojobsid/internal/service"
+	"github.com/hermansyah/adojobsid/internal/view"
+	"github.com/hermansyah/adojobsid/web/templates/components"
+	"github.com/hermansyah/adojobsid/web/templates/layout"
+)
+
+// Penyedia adalah halaman publik satu penyedia jasa.
+// Urutan bagiannya mengikuti pertanyaan pencari jasa: siapa orang ini,
+// seberapa dekat, apa yang ditawarkan, apa buktinya, kata siapa.
+templ Penyedia(d view.PenyediaData) {
+	@layout.Base(d.Base) {
+		<article class="container-app py-4 md:py-8">
+			@components.FlashMessage(d.Flash)
+			@KepalaPenyedia(d)
+			<div class="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1fr)_320px]">
+				<div class="min-w-0">
+					@JasaPenyedia(d)
+					@PortofolioPenyedia(d)
+					@UlasanPenyedia(d)
+				</div>
+				<aside class="lg:sticky lg:top-24 lg:self-start">
+					@PanelSampingPenyedia(d)
+				</aside>
+			</div>
+		</article>
+	}
+}
+
+templ KepalaPenyedia(d view.PenyediaData) {
+	<header class="flex flex-col gap-4 sm:flex-row sm:items-start">
+		@components.Avatar(view.Deref(d.Provider.AvatarURL), d.Provider.FullName, "h-20 w-20 text-xl sm:h-24 sm:w-24 sm:text-2xl")
+		<div class="min-w-0 flex-1">
+			<h1 class="flex flex-wrap items-center gap-2 font-display text-2xl font-extrabold sm:text-3xl">
+				<span>{ d.Provider.FullName }</span>
+				@components.BadgeTerverifikasi(d.Provider.IsVerified, true)
+			</h1>
+			<div class="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm" style="color: var(--text-muted)">
+				<span class="inline-flex items-center gap-1">
+					@components.Icon("lokasi", "h-4 w-4 shrink-0")
+					{ view.Lokasi(d.Provider.Kecamatan, d.Provider.City) }
+					if d.JarakKm != nil {
+						<span class="font-semibold" style="color: var(--text)">· { view.JarakLabel(d.JarakKm) }</span>
+					}
+				</span>
+				@components.Rating(d.Provider.AvgRating, d.Provider.TotalReviews, "text-sm")
+				<span>{ d.RingkasanJasa() }</span>
+				<span>Bergabung { d.BergabungSejak() }</span>
+			</div>
+			if d.JarakKm != nil && !d.Menjangkau() {
+				<p class="mt-2 inline-flex items-center gap-2 text-xs" style="color: var(--text-subtle)">
+					@components.Icon("peringatan", "h-4 w-4 shrink-0")
+					Lokasi Anda berada di luar radius layanan { strconv.Itoa(d.Provider.ServiceRadiusKm) } km penyedia ini.
+				</p>
+			}
+			if d.Provider.Bio != nil && *d.Provider.Bio != "" {
+				<p class="mt-4 max-w-prose whitespace-pre-line text-base leading-relaxed">{ *d.Provider.Bio }</p>
+			}
+			if d.IsOwner {
+				<div class="mt-4 flex flex-wrap gap-2">
+					<a href="/provider/profil" class="btn btn-secondary btn-sm">
+						@components.Icon("ubah", "h-4 w-4")
+						Ubah profil
+					</a>
+					<a href="/provider/portofolio" class="btn btn-secondary btn-sm">
+						@components.Icon("foto", "h-4 w-4")
+						Kelola portofolio
+					</a>
+					if !d.Provider.IsFeatured() {
+						<a href="/promosi/baru?jenis=penyedia_pilihan" class="btn btn-primary btn-sm">
+							@components.Icon("petir", "h-4 w-4")
+							Ajukan jadi penyedia pilihan
+						</a>
+					}
+				</div>
+			}
+		</div>
+	</header>
+}
+
+templ JasaPenyedia(d view.PenyediaData) {
+	<section id="jasa-penyedia" aria-labelledby="judul-jasa-penyedia">
+		@components.SectionHeading("Jasa yang ditawarkan", "") {
+		}
+		<h2 id="judul-jasa-penyedia" class="sr-only">Jasa yang ditawarkan</h2>
+		if len(d.Listings) == 0 {
+			if d.IsOwner {
+				@components.EmptyState("Belum ada jasa terpasang", "Halaman ini yang dilihat calon pelanggan. Pasang jasa pertama supaya ada yang bisa mereka pesan.") {
+					<a href="/jasa/baru" class="btn btn-primary mt-4">Pasang jasa pertama</a>
+				}
+			} else {
+				@components.EmptyState("Belum ada jasa terpasang", "Penyedia ini belum memasang jasa apa pun. Penyedia lain di sekitar Anda mungkin sudah.") {
+					<a href="/penyedia" class="btn btn-secondary mt-4">Lihat penyedia lain</a>
+				}
+			}
+		} else {
+			@components.ListingGrid(d.Listings)
+		}
+	</section>
+}
+
+// PortofolioPenyedia menampilkan hasil pekerjaan sebelumnya.
+// Galeri memakai thumbnail; gambar penuh dibuka di tab baru saat diklik,
+// sehingga halaman ini tidak perlu memuat semuanya dalam ukuran besar.
+//
+// Bagi pengunjung, portofolio kosong tidak ditampilkan sama sekali — judul
+// tanpa isi hanya menegaskan kekurangan. Pemiliknya justru perlu melihatnya,
+// beserta jalan untuk mengisinya.
+templ PortofolioPenyedia(d view.PenyediaData) {
+	if len(d.Portofolio) > 0 || d.IsOwner {
+		<section class="mt-10" aria-labelledby="judul-portofolio">
+			@components.SectionHeading("Portofolio", "Pekerjaan yang pernah diselesaikan") {
+			}
+			<h2 id="judul-portofolio" class="sr-only">Portofolio</h2>
+			if len(d.Portofolio) == 0 {
+				@components.EmptyState("Belum ada foto hasil pekerjaan", "Foto pekerjaan yang pernah selesai adalah bukti paling meyakinkan bagi calon pelanggan. Bagian ini belum tampil ke pengunjung sampai ada isinya.") {
+					<a href="/provider/portofolio" class="btn btn-primary mt-4">Tambah karya</a>
+				}
+			} else {
+				<div class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+					for _, k := range d.Portofolio {
+						@KartuPortofolio(k)
+					}
+				</div>
+			}
+		</section>
+	}
+}
+
+templ KartuPortofolio(k model.Portfolio) {
+	<figure class="surface-panel overflow-hidden">
+		<a href={ templ.SafeURL(k.ImageURL) } target="_blank" rel="noopener" class="block">
+			<img
+				src={ k.Tampil() }
+				alt={ k.Title }
+				loading="lazy"
+				decoding="async"
+				class="aspect-square w-full object-cover"
+			/>
+		</a>
+		<figcaption class="p-3">
+			<p class="clamp-2 text-sm font-semibold">{ k.Title }</p>
+			if k.CompletedAt != nil {
+				<p class="mt-0.5 text-2xs" style="color: var(--text-subtle)">
+					{ view.NamaBulan(k.CompletedAt.Month()) } { strconv.Itoa(k.CompletedAt.Year()) }
+				</p>
+			}
+		</figcaption>
+	</figure>
+}
+
+templ UlasanPenyedia(d view.PenyediaData) {
+	<section class="mt-10" aria-labelledby="judul-ulasan">
+		@components.SectionHeading("Ulasan pelanggan", "") {
+		}
+		<h2 id="judul-ulasan" class="sr-only">Ulasan pelanggan</h2>
+		if d.Ulasan == nil || d.Ulasan.Total == 0 {
+			if d.IsOwner {
+				@components.EmptyState(
+					"Belum ada ulasan",
+					"Ulasan ditulis pelanggan setelah pesanan Anda tandai selesai. Selesaikan pesanan lewat ruang obrolannya, dan ulasan pertama akan muncul di sini.",
+				) {
+					<a href="/pesan" class="btn btn-secondary mt-4">Buka pesanan</a>
+				}
+			} else if len(d.Listings) > 0 && d.DapatDihubungi() {
+				@components.EmptyState(
+					"Belum ada ulasan",
+					"Ulasan muncul setelah ada pesanan yang selesai. Penyedia baru belum memilikinya — bukan berarti kualitasnya kurang. Anda bisa jadi yang pertama.",
+				) {
+					<a href="#jasa-penyedia" class="btn btn-primary mt-4">Pilih jasa lalu pesan</a>
+				}
+			} else {
+				@components.EmptyState(
+					"Belum ada ulasan",
+					"Ulasan muncul di sini setelah ada pesanan yang ditandai selesai. Penyedia baru belum memilikinya — bukan berarti kualitasnya kurang.",
+				) {
+				}
+			}
+		} else {
+			<div class="grid gap-6 sm:grid-cols-[200px_minmax(0,1fr)]">
+				@RingkasanBintang(d.Ulasan)
+				<ul class="flex flex-col divide-y" style="border-color: var(--border)">
+					for _, u := range d.Ulasan.Terbaru {
+						@BarisUlasan(u)
+					}
+				</ul>
+			</div>
+		}
+	</section>
+}
+
+// RingkasanBintang menampilkan rata-rata dan sebaran penilaian.
+// Batangnya digambar dengan CSS; tidak ada pustaka grafik yang perlu dimuat
+// hanya untuk lima baris.
+templ RingkasanBintang(r *service.RingkasanUlasan) {
+	<div class="surface-panel p-4 text-center sm:self-start">
+		<p class="font-display text-4xl font-extrabold tabular-nums">{ view.RatingLabel(r.Rata) }</p>
+		<div class="mt-1 flex justify-center gap-0.5">
+			for _, penuh := range view.BintangPenuh(int(r.Rata + 0.5)) {
+				<span style={ gayaBintang(penuh) }>
+					@components.Icon("bintang", "h-4 w-4")
+				</span>
+			}
+		</div>
+		<p class="mt-1 text-xs" style="color: var(--text-muted)">
+			{ strconv.Itoa(r.Total) } ulasan
+		</p>
+		<ul class="mt-4 flex flex-col gap-1.5">
+			for _, b := range view.DaftarBintang() {
+				<li class="flex items-center gap-2 text-2xs">
+					<span class="w-3 tabular-nums" style="color: var(--text-muted)">{ strconv.Itoa(b) }</span>
+					<span class="h-1.5 flex-1 overflow-hidden rounded-full" style="background-color: var(--surface)">
+						<span class="block h-full rounded-full" style={ gayaBatangUlasan(r.PersenBintang(b)) }></span>
+					</span>
+					<span class="w-5 text-right tabular-nums" style="color: var(--text-subtle)">
+						{ strconv.Itoa(r.JumlahBintang(b)) }
+					</span>
+				</li>
+			}
+		</ul>
+	</div>
+}
+
+templ BarisUlasan(u model.ReviewRow) {
+	<li class="flex gap-3 py-4 first:pt-0">
+		@components.Avatar(view.Deref(u.PenulisAvatar), u.PenulisNama, "h-9 w-9 text-2xs")
+		<div class="min-w-0 flex-1">
+			<div class="flex flex-wrap items-baseline justify-between gap-2">
+				<span class="text-sm font-semibold">{ u.PenulisNama }</span>
+				<span class="text-2xs" style="color: var(--text-subtle)">{ view.WaktuRelatif(u.CreatedAt) }</span>
+			</div>
+			<div class="mt-0.5 flex gap-0.5">
+				for _, penuh := range view.BintangPenuh(u.Rating) {
+					<span style={ gayaBintang(penuh) }>
+						@components.Icon("bintang", "h-3.5 w-3.5")
+					</span>
+				}
+			</div>
+			<a
+				href={ templ.SafeURL(fmt.Sprintf("/jasa/%d", u.ServiceID)) }
+				class="clamp-1 mt-1 block text-xs hover:underline"
+				style="color: var(--text-muted)"
+			>{ u.ServiceTitle }</a>
+			if u.Comment != nil && *u.Comment != "" {
+				<p class="mt-2 whitespace-pre-line text-sm">{ *u.Comment }</p>
+			}
+		</div>
+	</li>
+}
+
+// PanelSampingPenyedia memuat kontak, area layanan, dan peta lokasi.
+templ PanelSampingPenyedia(d view.PenyediaData) {
+	<div class="flex flex-col gap-4">
+		if !d.IsOwner {
+			<div class="surface-panel p-4">
+				if d.DapatDihubungi() {
+					// Percakapan selalu bersandar pada satu jasa tertentu supaya
+					// kedua pihak membahas hal yang sama; karena itu tautannya
+					// mengarah ke daftar jasa, bukan ke obrolan kosong.
+					if len(d.Listings) > 0 {
+						<a href="#jasa-penyedia" class="btn btn-primary w-full">
+							@components.Icon("pesanan", "h-4 w-4")
+							Pilih jasa lalu kirim pesan
+						</a>
+						<p class="mt-3 text-2xs" style="color: var(--text-subtle)">
+							Permintaan order dan pembahasannya berlangsung di dalam aplikasi.
+						</p>
+					} else {
+						<p class="text-sm" style="color: var(--text-muted)">
+							Penyedia ini belum memasang jasa, jadi belum ada yang bisa dibahas.
+						</p>
+					}
+					if d.Base.Situs.WhatsappAktif && d.Provider.WhatsappNumber != "" {
+						<a
+							href={ templ.SafeURL(view.TautanWhatsapp(d.Provider.WhatsappNumber, "jasa Anda")) }
+							target="_blank"
+							rel="noopener"
+							class="btn btn-whatsapp mt-2 w-full"
+						>Hubungi lewat WhatsApp</a>
+					}
+				} else {
+					<p class="text-sm" style="color: var(--text-muted)">
+						Masuk untuk menghubungi penyedia ini.
+					</p>
+					<a href="/masuk" class="btn btn-primary mt-3 w-full">Masuk</a>
+				}
+			</div>
+		}
+		<div class="surface-panel p-4">
+			<h2 class="mb-3 text-sm font-semibold uppercase tracking-widest" style="color: var(--text-muted)">
+				Area layanan
+			</h2>
+			if area := view.AreaLayanan(*d.Provider); area != "" {
+				<p class="text-sm">{ area }</p>
+			}
+			if d.Provider.PunyaLokasi() {
+				<p class="mt-1 text-xs" style="color: var(--text-muted)">
+					Bersedia mendatangi pelanggan dalam radius { strconv.Itoa(d.Provider.ServiceRadiusKm) } km dari titik lokasinya.
+				</p>
+			} else {
+				<p class="mt-1 text-xs" style="color: var(--text-muted)">
+					Penyedia belum menandai titik lokasinya di peta.
+				</p>
+			}
+			if d.Provider.PunyaLokasi() {
+				<!-- Peta hanya menampilkan; pinnya tidak bisa digeser pengunjung. -->
+				<div
+					id="peta-penyedia"
+					class="mt-3 w-full overflow-hidden rounded-md"
+					style="height: 200px; border: 1px solid var(--border); background-color: var(--surface)"
+					data-peta={ d.PetaPenyedia() }
+					data-peta-radius={ strconv.Itoa(d.Provider.ServiceRadiusKm) }
+				></div>
+				if d.Provider.AddressLabel != nil && *d.Provider.AddressLabel != "" {
+					<p class="mt-2 text-xs" style="color: var(--text-subtle)">{ *d.Provider.AddressLabel }</p>
+				}
+			} else {
+				<p class="mt-3 text-xs" style="color: var(--text-subtle)">
+					Penyedia ini belum menentukan titik lokasinya.
+				</p>
+			}
+		</div>
+	</div>
+}
+
+func gayaBintang(penuh bool) string {
+	if penuh {
+		return "color: var(--star)"
+	}
+	return "color: var(--border-strong)"
+}
+
+func gayaBatangUlasan(persen int) string {
+	return fmt.Sprintf("width: %d%%; background-color: var(--star)", persen)
+}

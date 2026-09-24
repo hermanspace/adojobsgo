@@ -1,0 +1,314 @@
+package pages
+
+import (
+	"fmt"
+	"strconv"
+
+	"github.com/hermansyah/adojobsid/internal/repository"
+	"github.com/hermansyah/adojobsid/internal/view"
+	"github.com/hermansyah/adojobsid/web/templates/components"
+	"github.com/hermansyah/adojobsid/web/templates/layout"
+)
+
+// AdminUsers adalah halaman kelola pengguna dan penyedia jasa.
+templ AdminUsers(d view.AdminUsersData) {
+	@layout.AdminBase(d.AdminBase) {
+		<form
+			id="filter-pengguna"
+			action="/admin/pengguna"
+			method="get"
+			class="surface-panel mb-4 flex flex-col gap-3 p-4 lg:flex-row lg:items-end"
+			hx-get="/admin/pengguna/tabel"
+			hx-target="#panel-pengguna"
+			hx-swap="innerHTML"
+			hx-push-url="true"
+			hx-trigger="submit, input from:#cari-pengguna delay:400ms, change from:select"
+			hx-indicator="#indikator-pengguna"
+		>
+			<div class="flex-1">
+				<label for="cari-pengguna" class="field-label">Cari</label>
+				<input
+					id="cari-pengguna"
+					type="search"
+					name="q"
+					value={ d.Filter.Query }
+					class="input !min-h-0 h-10 text-sm"
+					placeholder="Nama, nomor HP, atau email"
+					autocomplete="off"
+				/>
+			</div>
+			<div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
+				@pilihFilter("tipe", "Tipe akun", d.Filter.OnlyType, []opsi{
+					{"", "Semua"}, {"provider", "Penyedia jasa"}, {"pencari", "Pencari jasa"},
+				})
+				@pilihFilter("status", "Status", d.Filter.Status, []opsi{
+					{"", "Semua"}, {"aktif", "Aktif"}, {"ditangguhkan", "Ditangguhkan"},
+				})
+				@pilihFilter("peran", "Peran", d.Filter.Role, []opsi{
+					{"", "Semua"}, {"user", "Pengguna"}, {"admin", "Admin"},
+				})
+				@pilihFilter("urut", "Urutkan", d.Filter.Sort, []opsi{
+					{"terbaru", "Terbaru"}, {"nama", "Nama"}, {"listing", "Listing terbanyak"}, {"rating", "Rating"},
+				})
+			</div>
+			<noscript><button type="submit" class="btn btn-primary !min-h-0 h-10">Terapkan</button></noscript>
+		</form>
+		<div id="panel-pengguna">
+			@AdminUsersTabel(d)
+		</div>
+	}
+}
+
+// AdminUsersTabel adalah fragmen yang ditukar HTMX setiap kali filter berubah
+// atau ada tindakan moderasi yang dijalankan.
+templ AdminUsersTabel(d view.AdminUsersData) {
+	<!-- Jumlah hasil ikut di dalam fragmen supaya angkanya tidak tertinggal
+	     setiap kali HTMX menukar tabel. -->
+	<div class="mb-3 flex items-center justify-between gap-3">
+		<p class="text-sm font-medium" style="color: var(--text-muted)">{ jumlahPengguna(d.Total) }</p>
+		<span id="indikator-pengguna">
+			@components.Spinner("")
+		</span>
+	</div>
+	if len(d.Items) == 0 {
+		@components.EmptyState("Tidak ada pengguna yang cocok", "Ubah kata kunci atau hapus filter yang aktif.") {
+			<a href="/admin/pengguna" class="btn btn-secondary mt-4">Hapus filter</a>
+		}
+	} else {
+		<div class="surface-panel overflow-x-auto">
+			<table class="tabel">
+				<thead>
+					<tr>
+						<th scope="col">Pengguna</th>
+						<th scope="col" class="hidden md:table-cell">Lokasi</th>
+						<th scope="col" class="hidden lg:table-cell">Listing</th>
+						<th scope="col" class="hidden lg:table-cell">Rating</th>
+						<th scope="col">Status</th>
+						<th scope="col"><span class="sr-only">Tindakan</span></th>
+					</tr>
+				</thead>
+				<tbody>
+					for _, u := range d.Items {
+						@barisPengguna(d, u)
+					}
+				</tbody>
+			</table>
+		</div>
+		@paginasiPengguna(d)
+	}
+}
+
+templ barisPengguna(d view.AdminUsersData, u repository.AdminUserRow) {
+	<tr class={ templ.KV("baris-nonaktif", u.IsSuspended()) }>
+		<td>
+			<div class="flex items-center gap-3">
+				@components.Avatar(view.Deref(u.AvatarURL), u.FullName, "h-9 w-9 text-2xs")
+				<div class="min-w-0">
+					<div class="flex items-center gap-1.5">
+						<span class="clamp-1 font-semibold">{ u.FullName }</span>
+						if u.IsVerified {
+							@components.BadgeTerverifikasi(true, false)
+						}
+					</div>
+					<span class="block text-xs tabular-nums" style="color: var(--text-muted)">{ u.Phone }</span>
+					<span class="mt-1 flex flex-wrap gap-1 md:hidden">
+						@tandaPeranSingkat(u)
+					</span>
+				</div>
+			</div>
+		</td>
+		<td class="hidden md:table-cell">
+			<span class="text-xs" style="color: var(--text-muted)">{ view.Lokasi(u.Kecamatan, u.City) }</span>
+		</td>
+		<td class="hidden lg:table-cell">
+			if u.IsProvider {
+				<span class="text-sm tabular-nums">{ strconv.Itoa(u.TotalListing) }</span>
+			} else {
+				<span style="color: var(--text-subtle)">—</span>
+			}
+		</td>
+		<td class="hidden lg:table-cell">
+			if u.IsProvider {
+				@components.Rating(u.AvgRating, u.TotalReviews, "text-xs")
+			} else {
+				<span style="color: var(--text-subtle)">—</span>
+			}
+		</td>
+		<td>
+			<div class="flex flex-wrap items-center gap-1">
+				if u.IsSuspended() {
+					<span class="tanda tanda-bahaya">Ditangguhkan</span>
+				} else {
+					<span class="tanda tanda-baik">Aktif</span>
+				}
+				if u.Role == "admin" {
+					<span class="tanda tanda-sorot">Admin</span>
+				}
+				if u.IsFeatured() {
+					<span class="tanda tanda-sorot">Pilihan</span>
+				}
+			</div>
+			if u.IsSuspended() && u.SuspendedReason != nil {
+				<p class="mt-1 max-w-[22ch] text-2xs" style="color: var(--text-subtle)">{ *u.SuspendedReason }</p>
+			}
+		</td>
+		<td>
+			@aksiPengguna(d, u)
+		</td>
+	</tr>
+}
+
+// aksiPengguna memuat seluruh tindakan moderasi untuk satu baris.
+// Semua tindakan bersifat reversible: tidak ada penghapusan permanen di sini.
+templ aksiPengguna(d view.AdminUsersData, u repository.AdminUserRow) {
+	<div class="flex flex-wrap items-start justify-end gap-2">
+		if u.IsProvider && u.ProviderID != nil {
+			<!-- Verifikasi penyedia -->
+			<button
+				type="button"
+				class="btn btn-secondary btn-sm"
+				hx-post={ fmt.Sprintf("/admin/penyedia/%d/verifikasi?verified=%t", *u.ProviderID, !u.IsVerified) }
+				hx-target="#panel-pengguna"
+				hx-swap="innerHTML"
+				hx-include="#filter-pengguna"
+			>
+				if u.IsVerified {
+					Cabut verifikasi
+				} else {
+					Verifikasi
+				}
+			</button>
+			<!-- Penyedia pilihan -->
+			<details>
+				<summary class="btn btn-secondary btn-sm cursor-pointer list-none">
+					if u.IsFeatured() {
+						Ubah sorotan
+					} else {
+						Jadikan pilihan
+					}
+				</summary>
+				<div class="surface-panel mt-1 w-44 p-2">
+					<p class="px-1 pb-1 text-2xs font-semibold uppercase tracking-wide" style="color: var(--text-muted)">
+						Lama tayang
+					</p>
+					for _, dur := range d.Durasi {
+						<button
+							type="button"
+							class="btn btn-ghost btn-sm w-full !justify-start"
+							hx-post={ fmt.Sprintf("/admin/penyedia/%d/sorot?hari=%d", *u.ProviderID, dur.Hari) }
+							hx-target="#panel-pengguna"
+							hx-swap="innerHTML"
+							hx-include="#filter-pengguna"
+						>{ dur.Label }</button>
+					}
+					if u.IsFeatured() {
+						<button
+							type="button"
+							class="btn btn-ghost btn-sm w-full !justify-start"
+							style="color: var(--danger)"
+							hx-post={ fmt.Sprintf("/admin/penyedia/%d/sorot?hari=0", *u.ProviderID) }
+							hx-target="#panel-pengguna"
+							hx-swap="innerHTML"
+							hx-include="#filter-pengguna"
+						>Cabut sorotan</button>
+					}
+				</div>
+			</details>
+		}
+		if u.ID != d.AdminID {
+			if u.IsSuspended() {
+				<button
+					type="button"
+					class="btn btn-secondary btn-sm"
+					hx-post={ fmt.Sprintf("/admin/pengguna/%d/aktifkan", u.ID) }
+					hx-target="#panel-pengguna"
+					hx-swap="innerHTML"
+					hx-include="#filter-pengguna"
+				>Aktifkan</button>
+			} else {
+				<!-- Form alasan dibuka lewat <details>, tanpa JavaScript.
+				     Alasan wajib diisi supaya setiap penangguhan punya keterangan. -->
+				<details class="aksi-lipat">
+					<summary>Tangguhkan</summary>
+					<div class="surface-panel mt-1 w-64 p-3">
+						<label for={ fmt.Sprintf("alasan-%d", u.ID) } class="field-label">Alasan penangguhan</label>
+						<textarea
+							id={ fmt.Sprintf("alasan-%d", u.ID) }
+							name="reason"
+							rows="3"
+							class="input text-sm"
+							placeholder="Contoh: listing palsu, laporan berulang dari pelanggan"
+							required
+							minlength="5"
+						></textarea>
+						<p class="field-hint mb-2">Pengguna akan langsung keluar dari sesinya.</p>
+						<button
+							type="button"
+							class="btn btn-danger btn-sm w-full"
+							hx-post={ fmt.Sprintf("/admin/pengguna/%d/tangguhkan", u.ID) }
+							hx-include={ fmt.Sprintf("#alasan-%d, #filter-pengguna", u.ID) }
+							hx-target="#panel-pengguna"
+							hx-swap="innerHTML"
+						>Tangguhkan akun</button>
+					</div>
+				</details>
+			}
+		} else {
+			<span class="text-2xs" style="color: var(--text-subtle)">Akun Anda</span>
+		}
+	</div>
+}
+
+templ paginasiPengguna(d view.AdminUsersData) {
+	if d.TotalPages > 1 {
+		<nav class="mt-4 flex items-center justify-between gap-3" aria-label="Paginasi pengguna">
+			if d.AdaSebelum() {
+				<a href={ templ.SafeURL(d.URLHalaman(d.HalamanSebelum())) } class="btn btn-secondary btn-sm">
+					@components.Icon("panah-kiri", "h-4 w-4")
+					Sebelumnya
+				</a>
+			} else {
+				<span></span>
+			}
+			<span class="text-xs tabular-nums" style="color: var(--text-muted)">
+				Halaman { strconv.Itoa(d.Page) } dari { strconv.Itoa(d.TotalPages) }
+			</span>
+			if d.AdaSesudah() {
+				<a href={ templ.SafeURL(d.URLHalaman(d.HalamanSesudah())) } class="btn btn-secondary btn-sm">
+					Berikutnya
+					@components.Icon("panah-kanan", "h-4 w-4")
+				</a>
+			} else {
+				<span></span>
+			}
+		</nav>
+	}
+}
+
+// opsi adalah satu pilihan pada dropdown filter.
+type opsi struct {
+	Nilai string
+	Label string
+}
+
+templ pilihFilter(nama string, label string, terpilih string, pilihan []opsi) {
+	<div>
+		<label for={ "filter-" + nama } class="field-label">{ label }</label>
+		<select id={ "filter-" + nama } name={ nama } class="input !min-h-0 h-10 text-sm">
+			for _, o := range pilihan {
+				if o.Nilai == terpilih {
+					<option value={ o.Nilai } selected>{ o.Label }</option>
+				} else {
+					<option value={ o.Nilai }>{ o.Label }</option>
+				}
+			}
+		</select>
+	</div>
+}
+
+func jumlahPengguna(total int) string {
+	if total == 0 {
+		return "Tidak ada pengguna"
+	}
+	return fmt.Sprintf("%d pengguna", total)
+}

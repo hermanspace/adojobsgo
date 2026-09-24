@@ -1,0 +1,131 @@
+package pages
+
+import (
+	"fmt"
+	"strconv"
+
+	"github.com/hermansyah/adojobsid/internal/view"
+	"github.com/hermansyah/adojobsid/web/templates/components"
+	"github.com/hermansyah/adojobsid/web/templates/layout"
+)
+
+// KelolaPortofolio adalah halaman penyedia menyusun karyanya.
+templ KelolaPortofolio(d view.PortofolioData) {
+	@layout.Base(d.Base) {
+		<div class="container-app py-6 md:py-10">
+			<div class="mx-auto max-w-3xl">
+				<a href="/dasbor" class="mb-4 inline-flex items-center gap-1 text-sm font-medium" style="color: var(--text-muted)">
+					@components.Icon("panah-kiri", "h-4 w-4")
+					Kembali ke dasbor
+				</a>
+				<h1 class="font-display text-2xl font-extrabold sm:text-3xl">Portofolio</h1>
+				<p class="mt-2 max-w-prose text-sm" style="color: var(--text-muted)">
+					Foto hasil pekerjaan yang pernah Anda selesaikan. Ini yang paling
+					meyakinkan calon pelanggan sebelum mereka menghubungi Anda.
+				</p>
+				@components.FlashMessage(d.Flash)
+				if d.SisaKarya() > 0 {
+					<form
+						action="/provider/portofolio"
+						method="post"
+						enctype="multipart/form-data"
+						class="surface-panel mt-6 p-5"
+						novalidate
+					>
+						<h2 class="mb-4 text-base font-bold">Tambah karya</h2>
+						<div class="grid gap-x-4 sm:grid-cols-2">
+							@components.Field("title", "Judul pekerjaan", "Contoh: Pemasangan AC 2 unit di ruko Jl. Hangtuah.", d.Form.Err("title")) {
+								<input
+									id="title"
+									name="title"
+									type="text"
+									class="input"
+									value={ d.Form.Value("title") }
+									maxlength="140"
+									required
+								/>
+							}
+							@components.Field("completed_at", "Tanggal pengerjaan", "Opsional.", d.Form.Err("completed_at")) {
+								<input
+									id="completed_at"
+									name="completed_at"
+									type="date"
+									class="input"
+									value={ d.Form.Value("completed_at") }
+								/>
+							}
+						</div>
+						@components.Field("gambar", "Foto hasil kerja", fmt.Sprintf("JPG, PNG, atau WEBP. Maksimal %d MB.", d.MaksSizeMB), d.Form.Err("gambar")) {
+							<input
+								id="gambar"
+								name="gambar"
+								type="file"
+								accept="image/jpeg,image/png,image/webp"
+								class="input"
+								required
+							/>
+						}
+						<button type="submit" class="btn btn-primary w-full sm:w-auto">Tambah ke portofolio</button>
+						<p class="mt-2 text-2xs" style="color: var(--text-subtle)">
+							Sisa { strconv.Itoa(d.SisaKarya()) } dari { strconv.Itoa(d.MaksKarya) } karya.
+						</p>
+					</form>
+				} else {
+					<div class="surface-panel mt-6 p-5">
+						<p class="text-sm" style="color: var(--text-muted)">
+							Portofolio sudah penuh ({ strconv.Itoa(d.MaksKarya) } karya).
+							Hapus salah satu untuk menambah yang baru.
+						</p>
+					</div>
+				}
+				<section class="mt-8" aria-labelledby="judul-karya">
+					<h2 id="judul-karya" class="mb-4 text-base font-bold">
+						Karya Anda ({ strconv.Itoa(len(d.Items)) })
+					</h2>
+					if len(d.Items) == 0 {
+						@components.EmptyState(
+							"Belum ada karya",
+							"Tambahkan foto pekerjaan yang pernah Anda selesaikan lewat formulir di atas.",
+						) {
+						}
+					} else {
+						<div class="grid grid-cols-2 gap-3 sm:grid-cols-3">
+							for _, k := range d.Items {
+								<figure class="surface-panel relative overflow-hidden">
+									<img
+										src={ k.Tampil() }
+										alt={ k.Title }
+										loading="lazy"
+										class="aspect-square w-full object-cover"
+									/>
+									<figcaption class="p-3">
+										<p class="clamp-2 text-sm font-semibold">{ k.Title }</p>
+										if k.CompletedAt != nil {
+											<p class="mt-0.5 text-2xs" style="color: var(--text-subtle)">
+												{ view.NamaBulan(k.CompletedAt.Month()) } { strconv.Itoa(k.CompletedAt.Year()) }
+											</p>
+										}
+									</figcaption>
+									<form
+										method="post"
+										action={ templ.SafeURL(fmt.Sprintf("/provider/portofolio/%d/hapus", k.ID)) }
+										class="absolute right-2 top-2"
+									>
+										<button
+											type="submit"
+											class="inline-flex h-7 w-7 items-center justify-center rounded-full backdrop-blur"
+											style="background-color: var(--nav-blur); color: var(--danger)"
+											aria-label={ "Hapus " + k.Title }
+										>
+											@components.Icon("tutup", "h-4 w-4")
+										</button>
+									</form>
+								</figure>
+							}
+						</div>
+					}
+				</section>
+			</div>
+		</div>
+	}
+}

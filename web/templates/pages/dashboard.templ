@@ -1,0 +1,177 @@
+package pages
+
+import (
+	"strconv"
+
+	"github.com/hermansyah/adojobsid/internal/view"
+	"github.com/hermansyah/adojobsid/web/templates/components"
+	"github.com/hermansyah/adojobsid/web/templates/layout"
+)
+
+// Dashboard adalah halaman akun. Untuk penyedia jasa halaman ini sekaligus
+// menjadi tempat mengelola listing.
+templ Dashboard(d view.DashboardData) {
+	@layout.Base(d.Base) {
+		<div class="container-app py-6 md:py-10">
+			@components.FlashMessage(d.Flash)
+			<header class="flex items-start gap-4">
+				@components.Avatar(view.Deref(d.User.AvatarURL), d.User.FullName, "h-14 w-14 text-lg")
+				<div class="min-w-0 flex-1">
+					<h1 class="font-display text-xl font-extrabold sm:text-2xl">{ d.User.FullName }</h1>
+					<p class="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm" style="color: var(--text-muted)">
+						<span class="inline-flex items-center gap-1">
+							@components.Icon("lokasi", "h-4 w-4")
+							{ view.Lokasi(d.User.Kecamatan, d.User.City) }
+						</span>
+						if d.Provider != nil {
+							@components.Rating(d.Provider.AvgRating, d.Provider.TotalReviews, "text-sm")
+							@components.BadgeTerverifikasi(d.Provider.IsVerified, true)
+						}
+					</p>
+				</div>
+			</header>
+			if d.Provider == nil {
+				<!-- Pengguna biasa: ajakan menjadi penyedia jasa. -->
+				<div class="surface-panel relative mt-6 overflow-hidden p-6">
+					<span class="absolute inset-x-0 top-0 h-0.5" style="background-image: linear-gradient(90deg, var(--primary-from), var(--primary-to))"></span>
+					<h2 class="text-lg font-bold">Punya keahlian yang bisa dijual?</h2>
+					<p class="mt-2 max-w-prose text-sm" style="color: var(--text-muted)">
+						Buat profil penyedia jasa, lalu pasang listing pertama Anda. Pelanggan
+						if d.Base.Situs.WhatsappAktif {
+							menghubungi Anda lewat pesan di aplikasi atau WhatsApp.
+						} else {
+							menghubungi Anda lewat pesan di aplikasi.
+						}
+					</p>
+					<a href="/provider/daftar" class="btn btn-primary mt-4">Buat profil penyedia</a>
+				</div>
+			} else {
+				<!-- Tiga kolom sejak 375px: isinya pendek, jadi menumpuknya secara
+				     vertikal hanya membuang ruang layar yang berharga di ponsel. -->
+				<div class="mt-6 grid grid-cols-3 gap-2 sm:gap-3">
+					@kotakStatistik("Listing", strconv.Itoa(jumlahAktif(d.Listings)))
+					@kotakStatistik("Ulasan", strconv.Itoa(d.Provider.TotalReviews))
+					@kotakStatistik("Rating", labelRating(d.Provider.AvgRating, d.Provider.TotalReviews))
+				</div>
+				if !d.Provider.PunyaLokasi() {
+					<!-- Tanpa pin, penyedia tidak muncul di pencarian berjarak dan
+					     area layanannya tidak bisa diturunkan. Ini langkah yang
+					     paling sering terlewat, jadi ditaruh sebelum daftar listing. -->
+					<div class="surface-panel mt-6 flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+						<div>
+							<p class="text-sm font-semibold">Titik lokasi belum ditandai</p>
+							<p class="mt-0.5 text-xs" style="color: var(--text-muted)">
+								Pencari jasa mengurutkan hasil berdasarkan jarak. Tanpa titik lokasi, jasa Anda tidak ikut terhitung dekat bagi siapa pun.
+							</p>
+						</div>
+						<a href="/provider/lokasi" class="btn btn-primary btn-sm shrink-0">
+							@components.Icon("lokasi", "h-4 w-4")
+							Tandai lokasi
+						</a>
+					</div>
+				}
+				<section class="mt-8" aria-labelledby="judul-listing">
+					<div class="mb-4 flex items-end justify-between gap-4">
+						<div>
+							<h2 id="judul-listing" class="text-lg font-bold sm:text-xl">Listing jasa Anda</h2>
+							<p class="text-sm" style="color: var(--text-muted)">Kelola jasa yang Anda tawarkan.</p>
+						</div>
+						<a href="/jasa/baru" class="btn btn-primary btn-sm shrink-0">
+							@components.Icon("tambah", "h-4 w-4")
+							Pasang jasa
+						</a>
+					</div>
+					if len(d.Listings) == 0 {
+						@components.EmptyState(
+							"Belum ada listing",
+							"Pasang jasa pertama Anda agar mulai ditemukan pelanggan di Bengkalis.",
+						) {
+							<a href="/jasa/baru" class="btn btn-primary mt-4">Pasang jasa pertama</a>
+						}
+					} else {
+						<div class="flex flex-col gap-3">
+							for _, item := range d.Listings {
+								@components.ListingCardCompact(item)
+							}
+						</div>
+					}
+				</section>
+			}
+			<section class="mt-10" aria-labelledby="judul-promosi">
+				<h2 id="judul-promosi" class="mb-3 text-sm font-semibold uppercase tracking-widest" style="color: var(--text-muted)">
+					Promosikan
+				</h2>
+				<div class={ "grid gap-3", templ.KV("sm:grid-cols-3", d.Provider != nil) }>
+					if d.Provider != nil {
+						@kartuPromosi("/promosi/baru?jenis=sorotan_jasa", "petir", "Sorot jasa", "Naik ke atas hasil pencarian selama masa paket")
+						@kartuPromosi("/promosi/baru?jenis=penyedia_pilihan", "terverifikasi", "Penyedia pilihan", "Tampil di blok tersendiri di beranda")
+					}
+					@kartuPromosi("/promosi/baru?jenis=iklan", "foto", "Pasang iklan", "Untuk usaha apa pun, tayang di slot yang dipilih")
+				</div>
+				<a href="/promosi" class="mt-3 inline-flex items-center gap-1 text-sm font-semibold" style="color: var(--primary-solid)">
+					Lihat pengajuan saya
+					@components.Icon("panah-kanan", "h-4 w-4")
+				</a>
+			</section>
+			<section class="mt-10" aria-labelledby="judul-pengaturan">
+				<h2 id="judul-pengaturan" class="mb-3 text-sm font-semibold uppercase tracking-widest" style="color: var(--text-muted)">
+					Pengaturan
+				</h2>
+				<div class="surface-panel divide-y" style="border-color: var(--border)">
+					if d.Base.User != nil && d.Base.User.IsAdmin {
+						@barisPengaturan("/admin", "filter", "Panel admin", "Kelola pengguna, listing, dan kategori")
+					}
+					@barisPengaturan("/akun/profil", "akun", "Data akun", "Nama, email, dan lokasi")
+					if d.Provider != nil {
+						@barisPengaturan("/provider/profil", "ubah", "Profil penyedia", "Deskripsi, nomor kontak, area layanan")
+						@barisPengaturan("/provider/lokasi", "lokasi", "Lokasi layanan", lokasiSubtitle(d.Provider))
+						@barisPengaturan("/provider/portofolio", "foto", "Portofolio", "Foto hasil pekerjaan yang pernah diselesaikan")
+						@barisPengaturan(view.URLPenyedia(d.Provider.Slug), "akun", "Lihat halaman publik", "Tampilan profil Anda di mata calon pelanggan")
+					}
+					<form action="/keluar" method="post">
+						<button type="submit" class="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-surface">
+							<span class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md" style="background-color: var(--surface); color: var(--danger)">
+								@components.Icon("keluar", "h-4 w-4")
+							</span>
+							<span class="flex-1 text-sm font-semibold" style="color: var(--danger)">Keluar</span>
+						</button>
+					</form>
+				</div>
+			</section>
+		</div>
+	}
+}
+
+templ kotakStatistik(label string, value string) {
+	<div class="surface-panel px-3 py-3">
+		<p class="text-2xs font-semibold uppercase tracking-wide" style="color: var(--text-muted)">{ label }</p>
+		<p class="mt-1 font-display text-xl font-extrabold tabular-nums sm:text-2xl">{ value }</p>
+	</div>
+}
+
+templ barisPengaturan(href string, icon string, title string, subtitle string) {
+	<a href={ templ.SafeURL(href) } class="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-surface">
+		<span class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md" style="background-color: var(--surface); color: var(--text-muted)">
+			@components.Icon(icon, "h-4 w-4")
+		</span>
+		<span class="min-w-0 flex-1">
+			<span class="block text-sm font-semibold">{ title }</span>
+			<span class="block text-xs" style="color: var(--text-muted)">{ subtitle }</span>
+		</span>
+		<span style="color: var(--text-subtle)">
+			@components.Icon("panah-kanan", "h-4 w-4")
+		</span>
+	</a>
+}
+
+templ kartuPromosi(href string, ikon string, judul string, keterangan string) {
+	<a href={ templ.SafeURL(href) } class="surface-panel flex items-start gap-3 p-4 transition-colors hover:border-line-strong">
+		<span class="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md" style="background-color: var(--primary-soft); color: var(--primary-solid)">
+			@components.Icon(ikon, "h-4 w-4")
+		</span>
+		<span class="min-w-0">
+			<span class="block text-sm font-semibold">{ judul }</span>
+			<span class="mt-0.5 block text-xs" style="color: var(--text-muted)">{ keterangan }</span>
+		</span>
+	</a>
+}

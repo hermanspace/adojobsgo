@@ -1,0 +1,341 @@
+openapi: 3.0.3
+info:
+  title: Adojobs API
+  version: "1.0"
+  description: |
+    Kontrak untuk aplikasi Android. Seluruh endpoint memakai service yang sama dengan situs web.
+
+    **Autentikasi.** `POST /auth/login` (atau `/auth/register`) mengembalikan `token`; kirim pada
+    setiap permintaan sebagai `Authorization: Bearer <token>`. Token adalah sesi di server —
+    `POST /auth/logout-all` mencabut semuanya di semua perangkat.
+
+    **Header wajib.** Semua permintaan yang mengubah data (POST/PATCH/DELETE) harus membawa
+    `X-Requested-With` (nilai bebas, mis. `adojobs-android`); tanpa `Authorization` ia adalah penjaga CSRF,
+    dengan `Authorization` ia diabaikan. Kirim saja selalu.
+
+    **URL berkas.** Semua `*_url` bersifat relatif (`/uploads/...`, `/iklan/7/klik`). Sambungkan dengan
+    `base_url` dari `GET /config`.
+
+    **Amplop.** Sukses: `{"data": ...}`. Gagal: `{"error": {"code", "message", "fields"?}}` dengan kode
+    `invalid_input` (422), `not_found` (404), `unauthorized` (401), `forbidden` (403), `conflict` (409),
+    `rate_limited` (429), `internal` (500). `fields` memetakan nama field → pesan.
+
+    **Obrolan waktu-nyata.** `GET /conversations/{id}/stream` adalah Server-Sent Events (`event: pesan`,
+    `data: <Message>`), ditutup server tiap 5 menit — sambung ulang dan kejar dengan `messages?since=`.
+
+    **Push.** Daftarkan token FCM lewat `POST /me/devices`. Setiap notifikasi membawa `data.type` dan
+    `data.tautan` (path web yang setara) untuk membuka layar yang tepat.
+servers:
+  - url: https://adojobs.id/api/v1
+  - url: http://localhost:3000/api/v1
+security:
+  - bearer: []
+components:
+  securitySchemes:
+    bearer: { type: http, scheme: bearer }
+  parameters:
+    id: { name: id, in: path, required: true, schema: { type: integer } }
+    lat: { name: lat, in: query, schema: { type: number }, description: Lintang penonton; wajib bersama lng }
+    lng: { name: lng, in: query, schema: { type: number } }
+    kecamatan: { name: kecamatan, in: query, schema: { type: string } }
+    page: { name: page, in: query, schema: { type: integer, default: 1 } }
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code: { type: string }
+            message: { type: string }
+            fields: { type: object, additionalProperties: { type: string } }
+    Sesi:
+      type: object
+      properties:
+        user: { $ref: '#/components/schemas/User' }
+        provider_id: { type: integer, description: 0 bila bukan penyedia }
+        token: { type: string }
+        expires_in: { type: integer, description: detik }
+    User:
+      type: object
+      properties:
+        id: { type: integer }
+        full_name: { type: string }
+        phone: { type: string }
+        email: { type: string, nullable: true }
+        avatar_url: { type: string, nullable: true }
+        city: { type: string, nullable: true }
+        kecamatan: { type: string, nullable: true }
+        is_provider: { type: boolean }
+        role: { type: string, enum: [user, admin] }
+    ServiceCard:
+      type: object
+      description: Kartu jasa di hasil pencarian.
+      properties:
+        id: { type: integer }
+        title: { type: string }
+        price_type: { type: string, enum: [fixed, hourly, negotiable] }
+        price_min: { type: number, nullable: true }
+        price_max: { type: number, nullable: true }
+        status: { type: string }
+        featured_until: { type: string, format: date-time, nullable: true }
+        cover_image: { type: string, nullable: true }
+        category_name: { type: string }
+        category_slug: { type: string }
+        provider_name: { type: string }
+        provider_kecamatan: { type: string, nullable: true }
+        avg_rating: { type: number }
+        total_reviews: { type: integer }
+        is_verified: { type: boolean }
+        provider_featured_until: { type: string, format: date-time, nullable: true }
+        jarak_km: { type: number, nullable: true, description: Hanya bila lat/lng dikirim }
+    Provider:
+      type: object
+      properties:
+        id: { type: integer }
+        slug: { type: string }
+        full_name: { type: string }
+        bio: { type: string, nullable: true }
+        is_verified: { type: boolean }
+        avg_rating: { type: number }
+        total_reviews: { type: integer }
+        featured_until: { type: string, format: date-time, nullable: true }
+        latitude: { type: number, nullable: true }
+        longitude: { type: number, nullable: true }
+        address_label: { type: string, nullable: true }
+        service_radius_km: { type: integer }
+        avatar_url: { type: string, nullable: true }
+        kecamatan: { type: string, nullable: true }
+        whatsapp_number: { type: string, description: Hanya bila pengelola menyalakan WhatsApp }
+    Message:
+      type: object
+      properties:
+        id: { type: integer }
+        conversation_id: { type: integer }
+        sender_id: { type: integer }
+        body: { type: string }
+        created_at: { type: string, format: date-time }
+    Order:
+      type: object
+      properties:
+        id: { type: integer }
+        service_id: { type: integer }
+        status: { type: string, enum: [pending, accepted, rejected, completed, cancelled] }
+        scheduled_date: { type: string, nullable: true }
+        notes: { type: string, nullable: true }
+    MenuItem:
+      type: object
+      description: |
+        Item menu utama. `jenis` menentukan perlakuan: `tautan` buka layar untuk path `tautan`;
+        `keluar` panggil POST /auth/logout; `tema` ganti tema; `aplikasi` — aplikasi native
+        menyembunyikan item ini (keadaan `playstore`/`pwa` hanya relevan di web).
+      properties:
+        ikon: { type: string, description: nama ikon (set ikon Adojobs) }
+        label: { type: string }
+        keterangan: { type: string }
+        tautan: { type: string, description: path web }
+        jenis: { type: string, enum: [tautan, keluar, aplikasi, tema] }
+        badge: { type: integer }
+        keadaan: { type: string, enum: [playstore, pwa] }
+        utama: { type: boolean, description: ditonjolkan (tombol penuh) }
+    MenuBagian:
+      type: object
+      properties:
+        judul: { type: string }
+        item: { type: array, items: { $ref: '#/components/schemas/MenuItem' } }
+    PanduanBagian:
+      type: object
+      description: Satu bagian halaman panduan; `id` adalah anchor tetap (`/tentang#<id>`).
+      properties:
+        id: { type: string, enum: [tentang, cara-kerja, fitur, promosi, faq, kontak] }
+        jenis: { type: string, enum: [teks, jalur, fitur, paket, tanya, kontak] }
+        judul: { type: string }
+        ringkas: { type: string }
+        paragraf: { type: array, items: { type: string } }
+        jalur:
+          type: array
+          items: { type: object, properties: { judul: { type: string }, langkah: { type: array, items: { $ref: '#/components/schemas/PanduanLangkah' } } } }
+        fitur: { type: array, items: { $ref: '#/components/schemas/PanduanLangkah' } }
+        tanya: { type: array, items: { type: object, properties: { tanya: { type: string }, jawab: { type: string } } } }
+    PanduanLangkah:
+      type: object
+      properties:
+        ikon: { type: string }
+        judul: { type: string }
+        isi: { type: string }
+        tautan: { type: string }
+        kunci: { type: string, description: jenis paket promosi untuk menempelkan harga dari `paket` }
+    Promosi:
+      type: object
+      properties:
+        id: { type: integer }
+        jenis: { type: string, enum: [iklan, sorotan_jasa, penyedia_pilihan] }
+        status: { type: string, enum: [menunggu, disetujui, aktif, dijeda, selesai, ditolak, dibatalkan, dihentikan] }
+        paket_id: { type: integer, nullable: true }
+        judul: { type: string, nullable: true }
+        gambar_url: { type: string, nullable: true }
+        target_kecamatan: { type: array, items: { type: string } }
+        catatan_admin: { type: string, nullable: true }
+        bukti_bayar_url: { type: string, nullable: true }
+        mulai_at: { type: string, format: date-time, nullable: true }
+        selesai_at: { type: string, format: date-time, nullable: true }
+        tayang: { type: integer }
+        klik: { type: integer }
+paths:
+  /config:
+    get:
+      security: []
+      summary: Konfigurasi awal aplikasi (satu panggilan saat dibuka)
+      description: |
+        Boleh dipanggil dengan atau tanpa bearer. Dengan bearer, `menu` disusun untuk peran pemanggil
+        (badge belum dibaca, item Keluar, item penyedia/admin); tanpa bearer, versi tamu.
+      responses:
+        "200":
+          description: base_url, menu (MenuBagian[]), situs, hero, lokasi (pusat, radius, daftar kecamatan berkoordinat), kategori (pohon), promosi (paket, uji_coba_gratis, pembayaran, maks_iklan_hidup), slot_iklan
+  /help:
+    get:
+      security: []
+      summary: Isi halaman Tentang & Panduan sebagai data (struktur yang sama dengan web)
+      responses:
+        "200":
+          description: "{bagian: PanduanBagian[], ringkasan: {jasa_aktif, penyedia, kecamatan}, paket: PaketPromosi[], kontak_wa}"
+  /auth/register:
+    post:
+      security: []
+      requestBody: { content: { application/json: { schema: { type: object, required: [full_name, phone, password, password_confirm], properties: { full_name: { type: string }, phone: { type: string }, email: { type: string }, password: { type: string }, password_confirm: { type: string }, city: { type: string }, kecamatan: { type: string } } } } } }
+      responses: { "201": { description: Sesi baru, content: { application/json: { schema: { properties: { data: { $ref: '#/components/schemas/Sesi' } } } } } } }
+  /auth/login:
+    post:
+      security: []
+      requestBody: { content: { application/json: { schema: { type: object, required: [identifier, password], properties: { identifier: { type: string, description: nomor HP atau email }, password: { type: string } } } } } }
+      responses: { "200": { description: Sesi }, "401": { description: Kredensial salah } }
+  /auth/me: { get: { summary: Pengguna saat ini (+ provider bila ada), responses: { "200": { description: OK } } } }
+  /auth/logout: { post: { summary: Cabut sesi ini, responses: { "200": { description: OK } } } }
+  /auth/logout-all: { post: { summary: Cabut semua sesi di semua perangkat, responses: { "200": { description: OK } } } }
+  /me:
+    patch:
+      summary: Ubah profil
+      requestBody: { content: { application/json: { schema: { type: object, properties: { full_name: { type: string }, email: { type: string }, city: { type: string }, kecamatan: { type: string } } } } } }
+      responses: { "200": { description: User } }
+  /me/password:
+    post:
+      requestBody: { content: { application/json: { schema: { type: object, properties: { current_password: { type: string }, new_password: { type: string }, new_password_confirm: { type: string } } } } } }
+      responses: { "200": { description: OK } }
+  /me/unread: { get: { summary: Jumlah pesan & notifikasi belum dibaca, responses: { "200": { description: "{pesan, notifikasi}" } } } }
+  /me/devices:
+    post:
+      summary: Daftarkan token FCM perangkat ini
+      requestBody: { content: { application/json: { schema: { type: object, required: [token], properties: { token: { type: string }, platform: { type: string, default: android } } } } } }
+      responses: { "200": { description: "{push_aktif}" } }
+    delete:
+      summary: Cabut token (saat keluar)
+      requestBody: { content: { application/json: { schema: { type: object, properties: { token: { type: string } } } } } }
+      responses: { "200": { description: OK } }
+  /categories: { get: { security: [], responses: { "200": { description: Pohon kategori } } } }
+  /kecamatan: { get: { security: [], responses: { "200": { description: Daftar nama kecamatan } } } }
+  /services:
+    get:
+      security: []
+      summary: Pencarian jasa (lentur, sadar-lokasi)
+      parameters:
+        - { name: q, in: query, schema: { type: string } }
+        - { name: kategori, in: query, schema: { type: string }, description: slug }
+        - $ref: '#/components/parameters/kecamatan'
+        - { name: harga, in: query, schema: { type: string, enum: [fixed, hourly, negotiable] } }
+        - { name: urut, in: query, schema: { type: string, enum: [terbaru, rating, termurah, termahal, terdekat] } }
+        - $ref: '#/components/parameters/lat'
+        - $ref: '#/components/parameters/lng'
+        - { name: radius, in: query, schema: { type: integer }, description: km; butuh lat/lng }
+        - { name: terjangkau, in: query, schema: { type: string, enum: ["1"] }, description: hanya penyedia yang radiusnya mencakup penonton }
+        - $ref: '#/components/parameters/page'
+        - { name: per_page, in: query, schema: { type: integer } }
+      responses: { "200": { description: "{items: ServiceCard[], total, page, per_page, total_pages}" } }
+  /services/{id}:
+    get: { security: [], parameters: [ { $ref: '#/components/parameters/id' } ], responses: { "200": { description: Detail jasa + images + category + provider } } }
+  /services/{id}/conversations:
+    post: { parameters: [ { $ref: '#/components/parameters/id' } ], summary: Buka atau temukan ruang obrolan untuk jasa ini, responses: { "201": { description: Conversation } } }
+  /services/{id}/orders:
+    post:
+      parameters: [ { $ref: '#/components/parameters/id' } ]
+      requestBody: { content: { application/json: { schema: { type: object, required: [notes], properties: { notes: { type: string, minLength: 10 }, scheduled_date: { type: string, format: date } } } } } }
+      responses: { "201": { description: "{order, conversation}" } }
+  /providers:
+    get:
+      security: []
+      summary: Direktori penyedia
+      parameters: [ { name: q, in: query, schema: { type: string } }, { $ref: '#/components/parameters/kecamatan' }, { name: terverifikasi, in: query, schema: { type: string } }, { name: berjasa, in: query, schema: { type: string } }, { name: urut, in: query, schema: { type: string, enum: [jasa, terdekat, rating, terbaru] } }, { $ref: '#/components/parameters/lat' }, { $ref: '#/components/parameters/lng' }, { name: radius, in: query, schema: { type: integer } }, { $ref: '#/components/parameters/page' } ]
+      responses: { "200": { description: "{items, total, page, total_pages}" } }
+    post:
+      summary: Jadi penyedia
+      requestBody: { content: { application/json: { schema: { type: object, required: [bio], properties: { bio: { type: string, minLength: 20 }, whatsapp_number: { type: string } } } } } }
+      responses: { "201": { description: Provider } }
+  /providers/featured:
+    get: { security: [], parameters: [ { $ref: '#/components/parameters/kecamatan' }, { $ref: '#/components/parameters/lat' }, { $ref: '#/components/parameters/lng' }, { name: n, in: query, schema: { type: integer, default: 4 } } ], responses: { "200": { description: Provider[] digilir, sekecamatan penonton didahulukan } } }
+  /providers/slug/{slug}:
+    get: { security: [], parameters: [ { name: slug, in: path, required: true, schema: { type: string } } ], responses: { "200": { description: "{provider, area_layanan[], services[], portfolio[], reviews{rata,total,sebaran,terbaru}}" } } }
+  /providers/{id}:
+    get: { security: [], parameters: [ { $ref: '#/components/parameters/id' } ], responses: { "200": { description: "{provider, services}" } } }
+  /providers/me: { patch: { summary: Ubah profil penyedia, responses: { "200": { description: Provider } } } }
+  /me/provider/location:
+    patch:
+      requestBody: { content: { application/json: { schema: { type: object, properties: { latitude: { type: number }, longitude: { type: number }, address_label: { type: string }, service_radius_km: { type: integer }, hapus: { type: boolean } } } } } }
+      responses: { "200": { description: Provider } }
+  /me/services:
+    get: { responses: { "200": { description: Listing milik sendiri termasuk yang nonaktif } } }
+    post: { requestBody: { content: { application/json: { schema: { type: object, properties: { category_id: { type: integer }, title: { type: string }, description: { type: string }, price_type: { type: string }, price_min: { type: string }, price_max: { type: string }, status: { type: string } } } } } }, responses: { "201": { description: Service (status pending sampai disetujui) } } }
+  /me/services/{id}:
+    patch: { parameters: [ { $ref: '#/components/parameters/id' } ], responses: { "200": { description: Service } } }
+    delete: { parameters: [ { $ref: '#/components/parameters/id' } ], responses: { "200": { description: OK } } }
+  /me/services/{id}/images:
+    post: { parameters: [ { $ref: '#/components/parameters/id' } ], requestBody: { content: { multipart/form-data: { schema: { type: object, properties: { foto: { type: array, items: { type: string, format: binary } } } } } } }, responses: { "201": { description: ServiceImage[] } } }
+  /me/services/{id}/images/{imageID}:
+    delete: { parameters: [ { $ref: '#/components/parameters/id' }, { name: imageID, in: path, required: true, schema: { type: integer } } ], responses: { "200": { description: OK } } }
+  /me/portfolio:
+    get: { responses: { "200": { description: "{items, maks}" } } }
+    post: { requestBody: { content: { multipart/form-data: { schema: { type: object, required: [gambar], properties: { title: { type: string }, completed_at: { type: string, format: date }, gambar: { type: string, format: binary } } } } } }, responses: { "201": { description: Portfolio } } }
+  /me/portfolio/{id}:
+    delete: { parameters: [ { $ref: '#/components/parameters/id' } ], responses: { "200": { description: OK } } }
+  /conversations: { get: { responses: { "200": { description: ConversationRow[] (judul jasa, lawan, pesan terakhir, belum dibaca, status order) } } } }
+  /conversations/{id}/messages:
+    get:
+      parameters: [ { $ref: '#/components/parameters/id' }, { name: since, in: query, schema: { type: integer }, description: hanya pesan dengan id lebih besar } ]
+      responses: { "200": { description: "{conversation, messages[], order?, tindakan_order?[], dapat_diulas?, ulasan?}" } }
+    post:
+      parameters: [ { $ref: '#/components/parameters/id' } ]
+      requestBody: { content: { application/json: { schema: { type: object, required: [body], properties: { body: { type: string } } } } } }
+      responses: { "201": { description: Message } }
+  /conversations/{id}/stream:
+    get: { parameters: [ { $ref: '#/components/parameters/id' } ], summary: Server-Sent Events pesan baru, responses: { "200": { description: "text/event-stream; event: pesan, data: Message; ditutup tiap 5 menit" } } }
+  /orders/{id}:
+    get: { parameters: [ { $ref: '#/components/parameters/id' } ], responses: { "200": { description: Order } } }
+  /orders/{id}/status:
+    post:
+      parameters: [ { $ref: '#/components/parameters/id' } ]
+      requestBody: { content: { application/json: { schema: { type: object, properties: { status: { type: string, enum: [accepted, rejected, completed, cancelled] } } } } } }
+      responses: { "200": { description: Order }, "409": { description: Transisi tidak sah untuk peran ini } }
+  /orders/{id}/review:
+    post:
+      parameters: [ { $ref: '#/components/parameters/id' } ]
+      requestBody: { content: { application/json: { schema: { type: object, required: [rating], properties: { rating: { type: integer, minimum: 1, maximum: 5 }, comment: { type: string } } } } } }
+      responses: { "201": { description: Review } }
+  /notifications:
+    get: { responses: { "200": { description: "[{id, type, judul, keterangan, tautan, read_at, created_at, payload}]" } } }
+  /notifications/read: { post: { summary: Tandai semua terbaca, responses: { "200": { description: OK } } } }
+  /me/promotions:
+    get: { responses: { "200": { description: Promosi[] } } }
+    post:
+      summary: Ajukan promosi (multipart; gambar wajib untuk iklan)
+      requestBody: { content: { multipart/form-data: { schema: { type: object, required: [jenis, paket_id], properties: { jenis: { type: string, enum: [iklan, sorotan_jasa, penyedia_pilihan] }, paket_id: { type: integer }, service_id: { type: integer }, alasan: { type: string }, judul: { type: string }, deskripsi: { type: string }, tautan_url: { type: string }, target_kecamatan: { type: array, items: { type: string } }, gambar: { type: string, format: binary } } } } } }
+      responses: { "201": { description: Promosi }, "409": { description: Sudah ada pengajuan hidup / batas iklan } }
+  /me/promotions/{id}:
+    get: { parameters: [ { $ref: '#/components/parameters/id' } ], responses: { "200": { description: "{promosi, label_status, paket?}" } } }
+  /me/promotions/{id}/proof:
+    post: { parameters: [ { $ref: '#/components/parameters/id' } ], requestBody: { content: { multipart/form-data: { schema: { type: object, required: [bukti], properties: { bukti: { type: string, format: binary } } } } } }, responses: { "200": { description: Promosi } } }
+  /me/promotions/{id}/cancel:
+    post: { parameters: [ { $ref: '#/components/parameters/id' } ], responses: { "200": { description: Promosi }, "409": { description: Sudah tayang } } }
+  /ads:
+    get:
+      security: []
+      summary: Satu iklan untuk satu slot (paket → kecamatan → rotasi berbobot), tayangan dihitung
+      parameters: [ { name: slot, in: query, required: true, schema: { type: string, enum: [beranda_atas, beranda_tengah, cari_atas, detail_samping] } }, { $ref: '#/components/parameters/kecamatan' }, { $ref: '#/components/parameters/lat' }, { $ref: '#/components/parameters/lng' } ]
+      responses: { "200": { description: "{sumber: promosi|bawaan, id?, judul, gambar_url, deskripsi?, klik_url} atau null" } }

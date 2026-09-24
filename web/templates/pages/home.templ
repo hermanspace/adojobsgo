@@ -1,0 +1,201 @@
+package pages
+
+import (
+	"strconv"
+
+	"github.com/hermansyah/adojobsid/internal/model"
+	"github.com/hermansyah/adojobsid/internal/view"
+	"github.com/hermansyah/adojobsid/web/templates/components"
+	"github.com/hermansyah/adojobsid/web/templates/layout"
+)
+
+// Home adalah beranda. Hero tetap bertumpu pada tipografi — tanpa blok gradasi
+// besar. Admin boleh memasang foto latar lewat pengaturan; saat itu terjadi,
+// foto dan lapisan gelapnya menjadi dua lapis terpisah di belakang teks,
+// sehingga kekuatan overlay bisa disetel tanpa mengubah warna teks.
+templ Home(d view.HomeData) {
+	@layout.Base(d.Base) {
+		<section class={ "hero", templ.KV("hero-bergambar", d.Base.Situs.PakaiHeroGambar()) }>
+			if d.Base.Situs.PakaiHeroGambar() {
+				<div class="hero-gambar" style={ d.Base.Situs.GayaHero() }></div>
+				<div class="hero-overlay" style={ d.Base.Situs.GayaOverlayHero() }></div>
+			}
+			<div class="container-app pt-8 pb-6 md:pt-16 md:pb-10">
+				@components.PemilihLokasi(d.Base, "/")
+				<h1 class="max-w-[16ch] font-display text-4xl font-extrabold leading-[1.05] sm:text-5xl md:max-w-[20ch]">
+					Cari tukang yang benar-benar
+					<span class="hero-judul-aksen">ada di dekat Anda</span>
+				</h1>
+				<p class="hero-teks-lembut mt-4 max-w-prose text-base">
+					Servis AC, perbaikan rumah, dekorasi acara, dokumentasi pernikahan.
+					Lihat jarak, harga, dan ulasannya dulu, baru hubungi penyedianya.
+				</p>
+				<form action="/cari" method="get" class="mt-6 flex flex-col gap-2 sm:max-w-xl sm:flex-row" role="search">
+					<div class="relative flex-1">
+						<span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2" style="color: var(--text-subtle)">
+							@components.Icon("cari", "h-5 w-5")
+						</span>
+						<input
+							type="search"
+							name="q"
+							class="input pl-11"
+							placeholder="Jasa apa yang Anda butuhkan?"
+							aria-label="Cari jasa"
+						/>
+					</div>
+					<button type="submit" class="btn btn-primary btn-lg">Cari jasa</button>
+				</form>
+				if d.Total > 0 {
+					<p class="hero-teks-samar mt-3 text-sm">
+						{ strconv.Itoa(d.Total) } jasa aktif dari penyedia lokal
+					</p>
+				}
+				if d.Base.Situs.AdaAplikasi() {
+					<div class="mt-6 flex flex-wrap items-center gap-3">
+						@components.LencanaPlaystore(d.Base.Situs)
+						<p class="hero-teks-samar max-w-[22ch] text-xs">
+							Pesan jasa dan pantau pesanan langsung dari ponsel Anda.
+						</p>
+					</div>
+				}
+			</div>
+		</section>
+		if slot := d.Base.SlotIklan("beranda_atas"); slot != nil {
+			<div class="container-app pb-2">
+				@components.Iklan(slot)
+			</div>
+		}
+		if len(d.Kategori) > 0 {
+			<section class="container-app py-6" aria-labelledby="judul-kategori">
+				<h2 id="judul-kategori" class="mb-4 text-sm font-semibold uppercase tracking-widest" style="color: var(--text-muted)">
+					Kategori
+				</h2>
+				<div class="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+					for _, k := range d.Kategori {
+						@KartuKategori(k)
+					}
+				</div>
+			</section>
+		}
+		if slot := d.Base.SlotIklan("beranda_tengah"); slot != nil {
+			<div class="container-app py-2">
+				@components.Iklan(slot)
+			</div>
+		}
+		if len(d.Pilihan) > 0 {
+			<section class="container-app py-6" aria-labelledby="judul-pilihan">
+				@components.SectionHeading("Penyedia pilihan", "Dipilih pengelola berdasarkan rekam kerjanya") {
+					<a href="/penyedia" class="inline-flex shrink-0 items-center gap-1 text-sm font-semibold" style="color: var(--primary-solid)">
+						Semua penyedia
+						@components.Icon("panah-kanan", "h-4 w-4")
+					</a>
+				}
+				<div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+					for _, p := range d.Pilihan {
+						@KartuPenyedia(p)
+					}
+				</div>
+			</section>
+		}
+		<section class="container-app py-6 md:py-10" aria-labelledby="judul-terbaru">
+			@components.SectionHeading("Jasa terbaru", "Listing yang baru dipasang penyedia di Bengkalis") {
+				<a href="/cari" class="inline-flex shrink-0 items-center gap-1 text-sm font-semibold" style="color: var(--primary-solid)">
+					Lihat semua
+					@components.Icon("panah-kanan", "h-4 w-4")
+				</a>
+			}
+			if len(d.Terbaru) == 0 {
+				@components.EmptyState(
+					"Belum ada jasa terpasang",
+					"Jadilah penyedia pertama di Bengkalis yang memasang jasa di sini.",
+				) {
+					<a href="/provider/daftar" class="btn btn-primary mt-4">Pasang jasa Anda</a>
+				}
+			} else {
+				@components.ListingGrid(d.Terbaru)
+			}
+		</section>
+		@AjakanProvider(d.Base)
+	}
+}
+
+// KartuPenyedia menampilkan satu penyedia pilihan.
+// Statusnya ditandai lewat garis aksen tipis di tepi atas, bukan pill berwarna.
+templ KartuPenyedia(p model.ProviderDetail) {
+	<article class={ "surface-panel relative overflow-hidden p-4",
+		templ.KV("is-sorot-penyedia", p.IsFeatured()) }>
+		if p.IsFeatured() {
+			<span class="pita-sorot-penyedia"></span>
+			<span class="sr-only">Penyedia pilihan pengelola.</span>
+		}
+		<div class="flex items-start gap-3">
+			@components.Avatar(view.Deref(p.AvatarURL), p.FullName, "h-11 w-11 text-sm")
+			<div class="min-w-0 flex-1">
+				<h3 class="flex items-center gap-1.5 text-sm font-bold">
+					<span class="clamp-1">{ p.FullName }</span>
+					@components.BadgeTerverifikasi(p.IsVerified, false)
+				</h3>
+				<p class="mt-0.5 flex items-center gap-1 text-xs" style="color: var(--text-muted)">
+					@components.Icon("lokasi", "h-3.5 w-3.5 shrink-0")
+					<span class="clamp-1">{ view.Lokasi(p.Kecamatan, p.City) }</span>
+				</p>
+				<div class="mt-1">
+					@components.Rating(p.AvgRating, p.TotalReviews, "text-xs")
+				</div>
+			</div>
+		</div>
+		if p.Bio != nil && *p.Bio != "" {
+			<p class="clamp-3 mt-3 text-xs" style="color: var(--text-muted)">{ *p.Bio }</p>
+		}
+	</article>
+}
+
+// KartuKategori: kotak padat dengan ikon garis, bukan emoji.
+templ KartuKategori(k model.Category) {
+	<a
+		href={ templ.SafeURL("/cari?kategori=" + k.Slug) }
+		class="surface-panel group flex items-center gap-3 p-3 transition-colors hover:border-line-strong"
+	>
+		<span
+			class="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md"
+			style="background-color: var(--primary-soft); color: var(--primary-solid)"
+		>
+			@components.Icon(ikonKategori(k.Icon), "h-5 w-5")
+		</span>
+		<span class="min-w-0">
+			<span class="clamp-1 block text-sm font-semibold">{ k.Name }</span>
+		</span>
+	</a>
+}
+
+// AjakanProvider: blok ajakan untuk penyedia jasa. Memakai permukaan netral
+// dengan satu garis aksen di atas, bukan latar gradasi.
+templ AjakanProvider(b view.Base) {
+	<section class="container-app pb-10">
+		<div class="surface-panel relative overflow-hidden p-6 md:p-8">
+			<span class="absolute inset-x-0 top-0 h-0.5" style="background-image: linear-gradient(90deg, var(--primary-from), var(--primary-to))"></span>
+			<div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+				<div class="max-w-prose">
+					<h2 class="text-xl font-bold md:text-2xl">Selama ini closing lewat WhatsApp saja?</h2>
+					<p class="mt-2 text-sm" style="color: var(--text-muted)">
+						Pasang jasa Anda di sini supaya calon pelanggan menemukan Anda lebih dulu —
+						lengkap dengan foto pekerjaan, harga, dan ulasan. Gratis.
+					</p>
+				</div>
+				if b.LoggedIn() && b.User.IsProvider {
+					<a href="/jasa/baru" class="btn btn-primary btn-lg shrink-0">Pasang jasa baru</a>
+				} else {
+					<a href="/provider/daftar" class="btn btn-primary btn-lg shrink-0">Daftar jadi penyedia</a>
+				}
+			</div>
+		</div>
+	</section>
+}
+
+// ikonKategori memetakan nama ikon dari basis data ke ikon yang tersedia.
+func ikonKategori(icon *string) string {
+	if icon == nil || *icon == "" {
+		return "tambah"
+	}
+	return *icon
+}

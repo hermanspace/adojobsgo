@@ -1,0 +1,186 @@
+package pages
+
+import (
+	"strconv"
+
+	"github.com/hermansyah/adojobsid/internal/view"
+	"github.com/hermansyah/adojobsid/web/templates/components"
+	"github.com/hermansyah/adojobsid/web/templates/layout"
+)
+
+// Tentang & Panduan: satu halaman panjang yang dirender dari view.Panduan —
+// data yang sama dikirim ke Android lewat GET /api/v1/help. Setiap bagian
+// punya anchor tetap (#cara-kerja, #faq, …) yang dipakai menu dan notifikasi.
+templ Tentang(d view.TentangData) {
+	@layout.Base(d.Base) {
+		<div class="container-app py-6 md:py-10">
+			<header class="max-w-prose">
+				<p class="text-2xs font-semibold uppercase tracking-widest" style="color: var(--text-subtle)">Tentang &amp; panduan</p>
+				<h1 class="mt-2 font-display text-3xl font-extrabold sm:text-4xl">{ d.Base.Situs.Nama }</h1>
+				<p class="mt-2 text-base" style="color: var(--text-muted)">{ d.Base.Description }</p>
+			</header>
+			if d.JasaAktif > 0 || d.Penyedia > 0 {
+				<div class="mt-6 grid grid-cols-3 gap-3 sm:max-w-lg">
+					@statTile(d.JasaAktif, "jasa aktif")
+					@statTile(d.Penyedia, "penyedia jasa")
+					@statTile(d.Kecamatan, "kecamatan")
+				</div>
+			}
+			<nav class="scroll-x mt-6 flex gap-2 overflow-x-auto md:hidden" aria-label="Daftar isi">
+				for _, b := range d.Bagian {
+					<a href={ templ.SafeURL("#" + b.ID) } class="chip">{ b.Judul }</a>
+				}
+			</nav>
+			<div class="mt-8 md:grid md:grid-cols-[200px_1fr] md:gap-10">
+				<aside class="hidden md:block">
+					<nav class="sticky top-24" aria-label="Daftar isi">
+						for _, b := range d.Bagian {
+							<a href={ templ.SafeURL("#" + b.ID) } class="toc-item">{ b.Judul }</a>
+						}
+					</nav>
+				</aside>
+				<div class="min-w-0 space-y-12">
+					for _, b := range d.Bagian {
+						<section id={ b.ID } class="panduan-bagian" aria-labelledby={ "judul-" + b.ID }>
+							<h2 id={ "judul-" + b.ID } class="font-display text-2xl font-extrabold">{ b.Judul }</h2>
+							if b.Ringkas != "" {
+								<p class="mt-1 max-w-prose text-sm" style="color: var(--text-muted)">{ b.Ringkas }</p>
+							}
+							switch b.Jenis {
+								case view.PanduanTeks:
+									@paragraf(b.Paragraf)
+								case view.PanduanJalur:
+									<div class="mt-5 grid gap-6 lg:grid-cols-2">
+										for _, j := range b.Jalur {
+											@jalur(j)
+										}
+									</div>
+								case view.PanduanFitur:
+									@gridFitur(b.Fitur)
+								case view.PanduanPaket:
+									@paket(d, b.Fitur)
+								case view.PanduanTanya:
+									<div class="mt-4 max-w-prose" style="border-bottom: 1px solid var(--border)">
+										for _, tj := range b.Tanya {
+											<details class="faq">
+												<summary>{ tj.Tanya }</summary>
+												<p>{ tj.Jawab }</p>
+											</details>
+										}
+									</div>
+								case view.PanduanKontak:
+									@paragraf(b.Paragraf)
+									@kontak(d)
+							}
+						</section>
+					}
+				</div>
+			</div>
+		</div>
+	}
+}
+
+templ statTile(angka int, label string) {
+	<div class="stat-tile">
+		<p class="stat-angka">{ strconv.Itoa(angka) }</p>
+		<p class="mt-1 text-xs" style="color: var(--text-muted)">{ label }</p>
+	</div>
+}
+
+templ paragraf(daftar []string) {
+	<div class="mt-3 max-w-prose space-y-3 text-sm leading-relaxed" style="color: var(--text-muted)">
+		for _, p := range daftar {
+			<p>{ p }</p>
+		}
+	</div>
+}
+
+templ jalur(j view.PanduanJalurData) {
+	<div class="rounded-lg p-5" style="background-color: var(--surface-raised); border: 1px solid var(--border)">
+		<h3 class="text-base font-bold">{ j.Judul }</h3>
+		<ol class="mt-4 space-y-4">
+			for i, l := range j.Langkah {
+				<li class="langkah">
+					<span class="langkah-nomor" aria-hidden="true">{ strconv.Itoa(i + 1) }</span>
+					<div class="min-w-0">
+						<p class="text-sm font-semibold">{ l.Judul }</p>
+						<p class="mt-0.5 text-sm" style="color: var(--text-muted)">{ l.Isi }</p>
+						if l.Tautan != "" {
+							<a href={ templ.SafeURL(l.Tautan) } class="mt-1 inline-flex items-center gap-1 text-sm font-semibold" style="color: var(--primary-solid)">
+								Mulai
+								@components.Icon("panah-kanan", "h-4 w-4")
+							</a>
+						}
+					</div>
+				</li>
+			}
+		</ol>
+	</div>
+}
+
+templ gridFitur(daftar []view.PanduanLangkah) {
+	<div class="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+		for _, f := range daftar {
+			<div class="rounded-lg p-4" style="background-color: var(--surface-raised); border: 1px solid var(--border)">
+				<span class="sheet-ikon">
+					@components.Icon(f.Ikon, "h-5 w-5")
+				</span>
+				<p class="mt-3 text-sm font-semibold">{ f.Judul }</p>
+				<p class="mt-1 text-sm" style="color: var(--text-muted)">{ f.Isi }</p>
+			</div>
+		}
+	</div>
+}
+
+// paket: tiga jenis promosi, masing-masing dengan paket & harga dari
+// database — bukan angka yang ditulis di teks panduan.
+templ paket(d view.TentangData, jenis []view.PanduanLangkah) {
+	if d.UjiCobaGratis {
+		<p class="mt-3 inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-semibold" style="background-color: var(--primary-soft); color: var(--primary-solid)">
+			@components.Icon("bintang", "h-4 w-4")
+			Masa uji coba: semua paket saat ini gratis.
+		</p>
+	}
+	<div class="mt-5 grid gap-3 lg:grid-cols-3">
+		for _, f := range jenis {
+			<div class="flex flex-col rounded-lg p-4" style="background-color: var(--surface-raised); border: 1px solid var(--border)">
+				<span class="sheet-ikon">
+					@components.Icon(f.Ikon, "h-5 w-5")
+				</span>
+				<p class="mt-3 text-sm font-semibold">{ f.Judul }</p>
+				<p class="mt-1 flex-1 text-sm" style="color: var(--text-muted)">{ f.Isi }</p>
+				if paketList := d.PaketUntuk(f.Kunci); len(paketList) > 0 {
+					<ul class="mt-3 space-y-1 text-sm" style="border-top: 1px solid var(--border)">
+						for _, p := range paketList {
+							<li class="flex items-baseline justify-between gap-3 pt-2">
+								<span>{ view.LabelPaket(p) }</span>
+								if p.Gratis() {
+									<span class="font-semibold tabular-nums">Gratis</span>
+								} else if d.UjiCobaGratis {
+									<span class="tabular-nums"><s style="color: var(--text-subtle)">{ view.RupiahLabel(p.Harga) }</s> <span class="font-semibold">Gratis</span></span>
+								} else {
+									<span class="font-semibold tabular-nums">{ view.RupiahLabel(p.Harga) }</span>
+								}
+							</li>
+						}
+					</ul>
+				}
+				if f.Tautan != "" {
+					<a href={ templ.SafeURL(f.Tautan) } class="btn btn-secondary btn-sm mt-4">Ajukan</a>
+				}
+			</div>
+		}
+	</div>
+}
+
+templ kontak(d view.TentangData) {
+	<div class="mt-4 flex flex-wrap gap-2">
+		if d.KontakWA != "" {
+			<a href={ templ.SafeURL("https://wa.me/" + d.KontakWA) } class="btn btn-primary btn-sm" target="_blank" rel="noopener">Hubungi pengelola</a>
+		}
+		<a href="/cari" class="btn btn-secondary btn-sm">Mulai cari jasa</a>
+	</div>
+	if d.Base.Situs.TeksFooter != "" {
+		<p class="mt-4 text-xs" style="color: var(--text-subtle)">{ d.Base.Situs.TeksFooter }</p>
+	}
+}

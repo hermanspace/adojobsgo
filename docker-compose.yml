@@ -1,0 +1,118 @@
+# Definisi dasar, dipakai bersama oleh lingkungan lokal maupun server.
+# Perbedaan antar lingkungan ada di docker-compose.override.yml (lokal)
+# dan docker-compose.prod.yml (server) — tidak ada logika yang diduplikasi.
+
+name: ${COMPOSE_PROJECT_NAME:-adojobsid}
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      args:
+        VERSION: ${APP_VERSION:-dev}
+    image: ${APP_IMAGE:-adojobsid-app}:${APP_TAG:-latest}
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      POSTGRES_HOST: postgres
+      REDIS_HOST: redis
+      UPLOAD_DIR: /app/storage/uploads
+    volumes:
+      # Foto listing disimpan di volume agar tidak hilang saat container dibangun ulang.
+      - uploads:/app/storage/uploads
+    # Port sengaja tidak dipublikasikan ke host: di server, Nginx Proxy Manager
+    # yang meneruskan trafik lewat jaringan Docker.
+    expose:
+      - "3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - internal
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      # Locale Indonesia untuk pengurutan teks yang benar.
+      LANG: id_ID.utf8
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks:
+      - internal
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    # Sesi login ada di Redis, jadi datanya harus tahan restart.
+    command: >
+      redis-server
+      --appendonly yes
+      --appendfsync everysec
+      --requirepass ${REDIS_PASSWORD}
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" ping | grep -q PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+    networks:
+      - internal
+
+  # ---- alat bantu pengembangan ----
+  # Hanya jalan bila profil "tools" diaktifkan, sehingga tidak pernah
+  # ikut berjalan di server.
+  adminer:
+    image: adminer:5
+    profiles: ["tools"]
+    restart: unless-stopped
+    environment:
+      ADMINER_DEFAULT_SERVER: postgres
+      ADMINER_DESIGN: dracula
+    ports:
+      - "${ADMINER_PORT:-8080}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - internal
+
+  pgweb:
+    image: sosedoff/pgweb:latest
+    profiles: ["tools"]
+    restart: unless-stopped
+    environment:
+      PGWEB_DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable
+    ports:
+      - "${PGWEB_PORT:-8081}:8081"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - internal
+
+volumes:
+  pgdata:
+  redisdata:
+  uploads:
+
+networks:
+  internal:
+    driver: bridge

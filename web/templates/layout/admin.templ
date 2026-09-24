@@ -1,0 +1,171 @@
+package layout
+
+import (
+	"strconv"
+
+	"github.com/hermansyah/adojobsid/internal/view"
+	"github.com/hermansyah/adojobsid/web/templates/components"
+)
+
+// AdminBase adalah kerangka panel admin.
+// Berbeda dengan sisi publik yang mobile-first, panel ini dirancang untuk
+// layar lebar — pekerjaan moderasi bertumpu pada tabel — namun tetap bisa
+// dipakai di ponsel: sidebar berubah menjadi baris menu yang dapat digeser.
+templ AdminBase(b view.AdminBase) {
+	<!DOCTYPE html>
+	<html lang="id" class="theme-loading">
+		<head>
+			<meta charset="utf-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+			<title>{ adminTitle(b.Title, b.Situs.Nama) }</title>
+			<meta name="robots" content="noindex, nofollow"/>
+			<link rel="icon" href="/static/img/favicon.svg" type="image/svg+xml"/>
+			<link rel="preload" href="/static/fonts/plus-jakarta-sans-latin.woff2" as="font" type="font/woff2" crossorigin/>
+			<link rel="stylesheet" href={ b.Assets.URL("/static/css/app.css") }/>
+			<!-- Leaflet di-self-host dan hanya dimuat di halaman berpeta; tile-nya
+			     dari OpenStreetMap, sudah diizinkan khusus di CSP. -->
+			if b.PakaiPeta {
+				<link rel="stylesheet" href={ b.Assets.URL("/static/vendor/leaflet/leaflet.css") }/>
+			}
+			<script src={ b.Assets.URL("/static/js/theme-init.js") }></script>
+			<script src={ b.Assets.URL("/static/js/htmx.min.js") } defer></script>
+			if b.PakaiPeta {
+				<script src={ b.Assets.URL("/static/vendor/leaflet/leaflet.js") } defer></script>
+			}
+			<script src={ b.Assets.URL("/static/js/app.js") } defer></script>
+			<script src={ b.Assets.URL("/static/js/alpine.min.js") } defer></script>
+		</head>
+		<body class="min-h-screen" style="background-color: var(--surface)">
+			<div class="lg:flex">
+				@AdminSidebar(b)
+				<div class="min-w-0 flex-1">
+					@AdminTopbar(b)
+					<main id="konten" class="px-4 py-6 lg:px-8">
+						<div class="mx-auto w-full max-w-[1200px]">
+							@components.FlashMessage(b.Flash)
+							{ children... }
+						</div>
+					</main>
+				</div>
+			</div>
+		</body>
+	</html>
+}
+
+// AdminSidebar: kolom tetap di layar lebar, baris menu yang bisa digeser di ponsel.
+templ AdminSidebar(b view.AdminBase) {
+	<!-- self-start penting: tanpa itu, align-items:stretch dari flex induk
+	     meregangkan aside setinggi konten halaman sehingga sticky tidak pernah
+	     bekerja dan sidebar ikut tergulung saat halaman panjang. -->
+	<aside
+		class="sticky top-0 z-30 lg:h-screen lg:w-60 lg:shrink-0 lg:self-start lg:border-r"
+		style="background-color: var(--bg); border-color: var(--border)"
+	>
+		<div class="flex items-center justify-between gap-3 px-4 py-4 lg:block lg:px-6" style="border-bottom: 1px solid var(--border)">
+			<a href="/admin" class="flex items-center gap-2">
+				@LogoSitus(b.Situs)
+			</a>
+			<p class="hidden text-2xs font-semibold uppercase tracking-widest lg:mt-2 lg:block" style="color: var(--text-subtle)">
+				Panel pengelola
+			</p>
+			<a href="/" class="btn btn-ghost btn-sm lg:hidden">Lihat situs</a>
+		</div>
+		<nav class="scroll-x px-4 py-2 lg:flex-col lg:gap-1 lg:overflow-visible lg:px-3 lg:py-4" aria-label="Menu admin">
+			@adminMenu("/admin", "beranda", "Ringkasan", "dasbor", b.ActiveMenu)
+			@adminMenu("/admin/pengguna", "akun", "Pengguna", "pengguna", b.ActiveMenu)
+			@adminMenuBadge("/admin/antrean", "sukses", "Antrean", "antrean", b.ActiveMenu, b.Antrean)
+			@adminMenu("/admin/jasa", "pesanan", "Listing jasa", "jasa", b.ActiveMenu)
+			@adminMenu("/admin/kategori", "filter", "Kategori", "kategori", b.ActiveMenu)
+			@adminMenuBadge("/admin/promosi", "petir", "Promosi", "promosi", b.ActiveMenu, b.AntreanPromosi)
+			@adminMenu("/admin/paket", "filter", "Paket promosi", "paket", b.ActiveMenu)
+			@adminMenu("/admin/pengaturan", "ubah", "Pengaturan", "pengaturan", b.ActiveMenu)
+		</nav>
+		<div class="hidden px-3 lg:block">
+			<a href="/" class="admin-menu">
+				@components.Icon("panah-kiri", "h-4 w-4 shrink-0")
+				<span>Kembali ke situs</span>
+			</a>
+		</div>
+	</aside>
+}
+
+// adminMenuBadge menampilkan jumlah antrean yang menunggu, sehingga admin
+// langsung melihat ada pekerjaan tanpa membuka halamannya.
+templ adminMenuBadge(href string, icon string, label string, key string, active string, jumlah int) {
+	<a
+		href={ templ.SafeURL(href) }
+		class={ "admin-menu", templ.KV("is-active", key == active) }
+		aria-current={ ariaCurrent(key == active) }
+	>
+		@components.Icon(icon, "h-4 w-4 shrink-0")
+		<span class="flex-1">{ label }</span>
+		if jumlah > 0 {
+			<span
+				class="inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full px-1 text-2xs font-bold"
+				style="background-image: linear-gradient(103deg, var(--primary-from), var(--primary-to)); color: var(--primary-contrast)"
+			>{ strconv.Itoa(jumlah) }</span>
+		}
+	</a>
+}
+
+templ adminMenu(href string, icon string, label string, key string, active string) {
+	<a
+		href={ templ.SafeURL(href) }
+		class={ "admin-menu", templ.KV("is-active", key == active) }
+		aria-current={ ariaCurrent(key == active) }
+	>
+		@components.Icon(icon, "h-4 w-4 shrink-0")
+		<span>{ label }</span>
+	</a>
+}
+
+// AdminTopbar memuat judul halaman dan aksi global.
+templ AdminTopbar(b view.AdminBase) {
+	<header
+		class="flex items-center gap-4 px-4 py-4 lg:px-8"
+		style="background-color: var(--bg); border-bottom: 1px solid var(--border)"
+	>
+		<div class="min-w-0 flex-1">
+			<h1 class="truncate font-display text-lg font-extrabold sm:text-xl">{ b.Title }</h1>
+			if b.Description != "" {
+				<p class="mt-0.5 truncate text-xs" style="color: var(--text-muted)">{ b.Description }</p>
+			}
+		</div>
+		<button
+			type="button"
+			data-theme-toggle
+			aria-pressed="false"
+			aria-label="Ganti ke mode gelap"
+			class="btn btn-ghost !min-h-0 h-9 w-9 shrink-0 !px-0"
+		>
+			<span class="dark:hidden">
+				@components.Icon("bulan", "h-5 w-5")
+			</span>
+			<span class="hidden dark:inline">
+				@components.Icon("matahari", "h-5 w-5")
+			</span>
+		</button>
+		if b.User != nil {
+			<span class="hidden items-center gap-2 sm:flex">
+				@components.Avatar(b.User.AvatarURL, b.User.FullName, "h-8 w-8 text-2xs")
+				<span class="max-w-[10rem] truncate text-sm font-semibold">{ b.User.FullName }</span>
+			</span>
+			<form action="/keluar" method="post" class="shrink-0">
+				<button type="submit" class="btn btn-secondary btn-sm" aria-label="Keluar">
+					@components.Icon("keluar", "h-4 w-4")
+					<span class="hidden sm:inline">Keluar</span>
+				</button>
+			</form>
+		}
+	</header>
+}
+
+func adminTitle(title, namaSitus string) string {
+	if namaSitus == "" {
+		namaSitus = "Adojobs"
+	}
+	if title == "" {
+		return "Panel admin · " + namaSitus
+	}
+	return title + " · Panel admin " + namaSitus
+}

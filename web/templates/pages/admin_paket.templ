@@ -1,0 +1,175 @@
+package pages
+
+import (
+	"fmt"
+	"strconv"
+	"strings"
+
+	"github.com/hermansyah/adojobsid/internal/model"
+	"github.com/hermansyah/adojobsid/internal/view"
+	"github.com/hermansyah/adojobsid/web/templates/components"
+	"github.com/hermansyah/adojobsid/web/templates/layout"
+)
+
+// AdminPaket adalah halaman kelola paket promosi: satu tabel untuk ketiga
+// jenis, dan satu form di samping — mengikuti pola halaman kategori.
+templ AdminPaket(d view.AdminPaketData) {
+	@layout.AdminBase(d.AdminBase) {
+		<!-- minmax(0,1fr): tanpa batas bawah nol, lebar minimum tabel memaksa kolom melebar melampaui layar. -->
+		<div class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
+			<section aria-labelledby="judul-daftar-paket">
+				<h2 id="judul-daftar-paket" class="sr-only">Daftar paket</h2>
+				<div class="surface-panel overflow-x-auto">
+					<table class="tabel">
+						<thead>
+							<tr>
+								<th scope="col">Paket</th>
+								<th scope="col">Durasi</th>
+								<th scope="col">Harga</th>
+								<th scope="col" class="hidden lg:table-cell">Bobot</th>
+								<th scope="col" class="hidden xl:table-cell">Slot</th>
+								<th scope="col"><span class="sr-only">Tindakan</span></th>
+							</tr>
+						</thead>
+						<tbody>
+							for _, p := range d.Items {
+								@barisPaket(p, d.EditID)
+							}
+						</tbody>
+					</table>
+				</div>
+				if len(d.Items) == 0 {
+					@components.EmptyState("Belum ada paket", "Tambahkan paket pertama lewat formulir di samping, atau jalankan seeder untuk paket bawaan.") {
+					}
+				}
+			</section>
+			<aside class="lg:sticky lg:top-24 lg:self-start">
+				@FormPaket(d)
+			</aside>
+		</div>
+	}
+}
+
+templ barisPaket(p model.PaketPromosi, editID int64) {
+	<tr class={ templ.KV("baris-nonaktif", !p.Aktif) }>
+		<td>
+			<span class="block font-semibold">{ p.Nama }</span>
+			<span class="block text-xs" style="color: var(--text-muted)">
+				{ model.LabelJenisPromosi(p.Jenis) }
+				if !p.Aktif {
+					· nonaktif
+				}
+			</span>
+		</td>
+		<td class="whitespace-nowrap">{ strconv.Itoa(p.DurasiHari) } hari</td>
+		<td class="whitespace-nowrap tabular-nums">
+			if p.Gratis() {
+				<span style="color: var(--text-muted)">Gratis</span>
+			} else {
+				{ view.RupiahLabel(p.Harga) }
+			}
+		</td>
+		<td class="hidden tabular-nums lg:table-cell">{ strconv.Itoa(p.Bobot) }</td>
+		<td class="hidden text-xs xl:table-cell" style="color: var(--text-muted)">
+			if p.Jenis == model.PromosiIklan {
+				{ strings.Join(p.SlotIklan, ", ") }
+			} else {
+				—
+			}
+		</td>
+		<td class="whitespace-nowrap text-right">
+			<a href={ templ.SafeURL(fmt.Sprintf("/admin/paket?edit=%d", p.ID)) } class="btn btn-ghost btn-sm">Ubah</a>
+			<form action={ templ.SafeURL(fmt.Sprintf("/admin/paket/%d/hapus", p.ID)) } method="post" class="inline">
+				<button type="submit" class="btn btn-ghost btn-sm" style="color: var(--danger)">Hapus</button>
+			</form>
+		</td>
+	</tr>
+}
+
+func aksiPaket(isEdit bool, id int64) string {
+	if isEdit {
+		return fmt.Sprintf("/admin/paket/%d", id)
+	}
+	return "/admin/paket"
+}
+
+templ FormPaket(d view.AdminPaketData) {
+	<div class="surface-panel p-5">
+		<h2 class="mb-1 text-base font-bold">
+			if d.IsEdit {
+				Ubah paket
+			} else {
+				Tambah paket
+			}
+		</h2>
+		<p class="mb-4 text-xs" style="color: var(--text-muted)">
+			Harga nol berarti gratis. Selama sakelar uji coba gratis menyala, harga tidak ditagihkan.
+		</p>
+		<form action={ templ.SafeURL(aksiPaket(d.IsEdit, d.EditID)) } method="post" novalidate>
+			@components.Field("jenis", "Jenis", "", d.Form.Err("jenis")) {
+				<select id="jenis" name="jenis" class="input">
+					for _, j := range d.Jenis {
+						if d.Form.Selected("jenis", j) {
+							<option value={ j } selected>{ model.LabelJenisPromosi(j) }</option>
+						} else {
+							<option value={ j }>{ model.LabelJenisPromosi(j) }</option>
+						}
+					}
+				</select>
+			}
+			@components.Field("nama", "Nama paket", "Unik per jenis, misalnya \"30 hari\" atau \"Utama 14 hari\".", d.Form.Err("nama")) {
+				<input id="nama" name="nama" type="text" class="input" value={ d.Form.Value("nama") } required/>
+			}
+			@components.Field("deskripsi", "Keterangan", "Tampil ke pengiklan saat memilih paket.", d.Form.Err("deskripsi")) {
+				<input id="deskripsi" name="deskripsi" type="text" class="input" value={ d.Form.Value("deskripsi") } maxlength="300"/>
+			}
+			<div class="grid grid-cols-2 gap-3">
+				@components.Field("durasi_hari", "Durasi (hari)", "", d.Form.Err("durasi_hari")) {
+					<input id="durasi_hari" name="durasi_hari" type="number" class="input" value={ d.Form.Value("durasi_hari") } min="1" max="365" required/>
+				}
+				@components.Field("harga", "Harga (Rp)", "", d.Form.Err("harga")) {
+					<input id="harga" name="harga" type="number" class="input" value={ d.Form.Value("harga") } min="0" step="1000"/>
+				}
+				@components.Field("bobot", "Bobot rotasi", "1–10", d.Form.Err("bobot")) {
+					<input id="bobot" name="bobot" type="number" class="input" value={ d.Form.Value("bobot") } min="1" max="10"/>
+				}
+				@components.Field("urutan", "Urutan", "", d.Form.Err("urutan")) {
+					<input id="urutan" name="urutan" type="number" class="input" value={ d.Form.Value("urutan") } min="0"/>
+				}
+			</div>
+			<fieldset class="mb-4">
+				<legend class="field-label">Slot penempatan (hanya iklan)</legend>
+				<div class="flex flex-col gap-1.5">
+					for _, s := range d.Slot {
+						<label class="flex items-center gap-2 text-sm">
+							<input type="checkbox" name="slot_iklan" value={ s.Kunci } class="h-4 w-4 rounded-xs" checked?={ d.SlotDipilih(s.Kunci) }/>
+							<span>{ s.Nama }</span>
+						</label>
+					}
+				</div>
+				if d.Form.HasErr("slot_iklan") {
+					<p class="field-error">
+						@components.Icon("peringatan", "h-3.5 w-3.5 shrink-0 mt-0.5")
+						<span>{ d.Form.Err("slot_iklan") }</span>
+					</p>
+				}
+			</fieldset>
+			<label class="mb-4 flex items-center gap-2 text-sm">
+				<input type="checkbox" name="aktif" value="1" class="h-4 w-4 rounded-xs" checked?={ d.Form.Value("aktif") == "1" }/>
+				<span>Ditawarkan ke pengiklan</span>
+			</label>
+			<div class="mt-2 flex flex-col gap-2">
+				<button type="submit" class="btn btn-primary w-full">
+					if d.IsEdit {
+						Simpan perubahan
+					} else {
+						Tambah paket
+					}
+				</button>
+				if d.IsEdit {
+					<a href="/admin/paket" class="btn btn-secondary w-full">Batal</a>
+				}
+			</div>
+		</form>
+	</div>
+}

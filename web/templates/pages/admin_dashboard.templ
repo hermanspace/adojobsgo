@@ -1,0 +1,184 @@
+package pages
+
+import (
+	"fmt"
+	"strconv"
+
+	"github.com/hermansyah/adojobsid/internal/repository"
+	"github.com/hermansyah/adojobsid/internal/view"
+	"github.com/hermansyah/adojobsid/web/templates/components"
+	"github.com/hermansyah/adojobsid/web/templates/layout"
+)
+
+// AdminDashboard adalah halaman ringkasan panel admin.
+templ AdminDashboard(d view.AdminDashboardData) {
+	@layout.AdminBase(d.AdminBase) {
+		<section aria-labelledby="judul-angka">
+			<h2 id="judul-angka" class="sr-only">Ringkasan angka</h2>
+			<div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
+				@statistik("Pengguna", strconv.Itoa(d.Stats.TotalUser),
+					fmt.Sprintf("+%d dalam 7 hari", d.Stats.UserBaru7Hari))
+				@statistik("Penyedia jasa", strconv.Itoa(d.Stats.TotalProvider),
+					fmt.Sprintf("%d terverifikasi", d.Stats.ProviderTerverif))
+				@statistik("Listing aktif", strconv.Itoa(d.Stats.ListingAktif),
+					fmt.Sprintf("+%d dalam 7 hari", d.Stats.ListingBaru7Hari))
+				@statistik("Kategori", strconv.Itoa(d.Stats.TotalKategori),
+					fmt.Sprintf("%d belum terpakai", d.Stats.KategoriTanpaJasa))
+			</div>
+		</section>
+		<section class="mt-6" aria-labelledby="judul-promosi-angka">
+			<h2 id="judul-promosi-angka" class="mb-3 text-sm font-semibold uppercase tracking-widest" style="color: var(--text-muted)">
+				Promosi
+			</h2>
+			<div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
+				@statistik("Sedang tayang", strconv.Itoa(d.Promosi.TayangIklan+d.Promosi.TayangSorotan+d.Promosi.TayangPenyedia),
+					fmt.Sprintf("%d iklan · %d sorotan · %d penyedia", d.Promosi.TayangIklan, d.Promosi.TayangSorotan, d.Promosi.TayangPenyedia))
+				@statistik("Tayangan iklan", strconv.FormatInt(d.Promosi.TotalTayang, 10),
+					fmt.Sprintf("%d klik · CTR %s", d.Promosi.TotalKlik, d.CTR()))
+				@statistik("Menunggu", strconv.Itoa(d.Promosi.Menunggu+d.Promosi.MenungguBayar),
+					fmt.Sprintf("%d ditinjau · %d bayar", d.Promosi.Menunggu, d.Promosi.MenungguBayar))
+				@statistik("Selesai 30 hari", strconv.Itoa(d.Promosi.Selesai30Hari), "masa tayang yang berakhir")
+			</div>
+		</section>
+		<!-- Angka yang menuntut tindakan dipisahkan dari angka pertumbuhan,
+		     supaya admin tahu apa yang perlu dikerjakan hari ini. -->
+		if d.Stats.UserDitangguhkan > 0 || d.Stats.ListingNonaktif > 0 || d.Stats.ListingTanpaFoto > 0 || d.Promosi.Menunggu > 0 || d.Promosi.BuktiMasuk > 0 {
+			<section class="mt-6" aria-labelledby="judul-perhatian">
+				<h2 id="judul-perhatian" class="mb-3 text-sm font-semibold uppercase tracking-widest" style="color: var(--text-muted)">
+					Perlu perhatian
+				</h2>
+				<div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
+					@kartuPerhatian("Akun ditangguhkan", d.Stats.UserDitangguhkan,
+						"/admin/pengguna?status=ditangguhkan", "Tinjau akun")
+					@kartuPerhatian("Listing nonaktif", d.Stats.ListingNonaktif,
+						"/admin/jasa?status=inactive", "Tinjau listing")
+					@kartuPerhatian("Listing tanpa foto", d.Stats.ListingTanpaFoto,
+						"/admin/jasa?tanpa_foto=1", "Tinjau listing")
+					@kartuPerhatian("Pengajuan promosi", d.Promosi.Menunggu,
+						"/admin/promosi", "Tinjau pengajuan")
+					@kartuPerhatian("Bukti bayar masuk", d.Promosi.BuktiMasuk,
+						"/admin/promosi?tab=bayar", "Konfirmasi")
+				</div>
+			</section>
+		}
+		<div class="mt-6 grid gap-6 lg:grid-cols-2">
+			<section class="surface-panel p-5" aria-labelledby="judul-kategori-teratas">
+				<div class="mb-4 flex items-baseline justify-between gap-3">
+					<h2 id="judul-kategori-teratas" class="text-base font-bold">Listing per kategori</h2>
+					<a href="/admin/kategori" class="text-xs font-semibold" style="color: var(--primary-solid)">Kelola</a>
+				</div>
+				if len(d.Kategori) == 0 {
+					<p class="text-sm" style="color: var(--text-muted)">Belum ada listing aktif.</p>
+				} else {
+					<ul class="flex flex-col gap-3">
+						for _, k := range d.Kategori {
+							<li>
+								<div class="mb-1 flex items-baseline justify-between gap-3 text-sm">
+									<a
+										href={ templ.SafeURL("/cari?kategori=" + k.Slug) }
+										class="clamp-1 font-medium hover:underline"
+									>{ k.Nama }</a>
+									<span class="shrink-0 font-semibold tabular-nums">{ strconv.Itoa(k.Jumlah) }</span>
+								</div>
+								<!-- Batang grafik digambar dengan CSS murni; tidak ada pustaka chart
+								     yang perlu dimuat hanya untuk delapan baris data. -->
+								<div class="h-1.5 w-full overflow-hidden rounded-full" style="background-color: var(--surface)">
+									<div
+										class="h-full rounded-full"
+										style={ gayaBatang(d.PersenDari(k.Jumlah)) }
+									></div>
+								</div>
+							</li>
+						}
+					</ul>
+				}
+			</section>
+			<section class="surface-panel p-5" aria-labelledby="judul-pengguna-baru">
+				<div class="mb-4 flex items-baseline justify-between gap-3">
+					<h2 id="judul-pengguna-baru" class="text-base font-bold">Pengguna terbaru</h2>
+					<a href="/admin/pengguna" class="text-xs font-semibold" style="color: var(--primary-solid)">Lihat semua</a>
+				</div>
+				if len(d.Terbaru) == 0 {
+					<p class="text-sm" style="color: var(--text-muted)">Belum ada pengguna terdaftar.</p>
+				} else {
+					<ul class="flex flex-col divide-y" style="border-color: var(--border)">
+						for _, u := range d.Terbaru {
+							<li class="flex items-center gap-3 py-2 first:pt-0 last:pb-0">
+								@components.Avatar(view.Deref(u.AvatarURL), u.FullName, "h-8 w-8 text-2xs")
+								<span class="min-w-0 flex-1">
+									<span class="clamp-1 block text-sm font-semibold">{ u.FullName }</span>
+									<span class="block text-xs" style="color: var(--text-muted)">
+										{ view.Lokasi(u.Kecamatan, u.City) } · { view.WaktuRelatif(u.CreatedAt) }
+									</span>
+								</span>
+								@tandaPeranSingkat(u)
+							</li>
+						}
+					</ul>
+				}
+			</section>
+		</div>
+	}
+}
+
+templ statistik(label string, nilai string, keterangan string) {
+	<div class="statistik">
+		<p class="text-2xs font-semibold uppercase tracking-wide" style="color: var(--text-muted)">{ label }</p>
+		<p class="font-display text-2xl font-extrabold tabular-nums">{ nilai }</p>
+		<p class="text-xs" style="color: var(--text-subtle)">{ keterangan }</p>
+	</div>
+}
+
+templ kartuPerhatian(label string, jumlah int, href string, aksi string) {
+	<a href={ templ.SafeURL(href) } class="surface-panel flex items-center gap-3 p-4 transition-colors hover:border-line-strong">
+		<span class="font-display text-2xl font-extrabold tabular-nums" style={ warnaPerhatian(jumlah) }>
+			{ strconv.Itoa(jumlah) }
+		</span>
+		<span class="min-w-0 flex-1">
+			<span class="block text-sm font-semibold">{ label }</span>
+			<span class="block text-xs" style="color: var(--text-muted)">{ aksi }</span>
+		</span>
+		<span style="color: var(--text-subtle)">
+			@components.Icon("panah-kanan", "h-4 w-4")
+		</span>
+	</a>
+}
+
+// tandaPeranSingkat hanya menampilkan penanda bila ada yang memang perlu
+// dibedakan; akun pencari jasa biasa tidak diberi label apa pun.
+templ tandaPeranSingkat(u repository.AdminUserRow) {
+	if u.IsSuspended() {
+		<span class="tanda tanda-bahaya">Ditangguhkan</span>
+	} else if u.Role == "admin" {
+		<span class="tanda tanda-sorot">Admin</span>
+	} else if u.IsProvider {
+		<span class="tanda">Penyedia</span>
+	}
+}
+
+func gayaBatang(persen int) string {
+	return fmt.Sprintf(
+		"width: %d%%; background-image: linear-gradient(90deg, var(--primary-from), var(--primary-to))", persen)
+}
+
+func warnaPerhatian(jumlah int) string {
+	if jumlah == 0 {
+		return "color: var(--text-subtle)"
+	}
+	return "color: var(--text)"
+}
+
+// AdminAksiGagal menyisipkan pesan kegagalan di atas fragmen tabel.
+// Fragmen HTMX hanya menukar area tabel, sehingga area flash halaman tidak
+// ikut tersegarkan dan pesannya perlu ikut dikirim di sini.
+templ AdminAksiGagal(pesan string, isi templ.Component) {
+	<div
+		class="mb-3 flex items-start gap-2 rounded-md px-4 py-3 text-sm"
+		style="background-color: var(--surface); border-left: 3px solid var(--danger); color: var(--danger)"
+		role="alert"
+	>
+		@components.Icon("peringatan", "h-5 w-5 shrink-0")
+		<p class="font-medium" style="color: var(--text)">{ pesan }</p>
+	</div>
+	@isi
+}

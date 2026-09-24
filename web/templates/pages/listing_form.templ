@@ -1,0 +1,300 @@
+package pages
+
+import (
+	"fmt"
+	"strconv"
+
+	"github.com/hermansyah/adojobsid/internal/model"
+	"github.com/hermansyah/adojobsid/internal/view"
+	"github.com/hermansyah/adojobsid/web/templates/components"
+	"github.com/hermansyah/adojobsid/web/templates/layout"
+)
+
+// ListingForm dipakai untuk membuat dan menyunting listing jasa.
+// Foto baru bisa diunggah setelah listing tersimpan, supaya pengguna
+// tidak kehilangan isian bila unggahan gagal di tengah jalan.
+templ ListingForm(d view.ListingFormData) {
+	@layout.Base(d.Base) {
+		<div class="container-app py-6 md:py-10">
+			<div class="mx-auto max-w-2xl">
+				<a href="/dasbor" class="mb-4 inline-flex items-center gap-1 text-sm font-medium" style="color: var(--text-muted)">
+					@components.Icon("panah-kiri", "h-4 w-4")
+					Kembali ke dasbor
+				</a>
+				<h1 class="font-display text-2xl font-extrabold sm:text-3xl">
+					if d.IsEdit {
+						Ubah listing jasa
+					} else {
+						Pasang jasa baru
+					}
+				</h1>
+				@components.FlashMessage(d.Flash)
+				<form
+					action={ templ.SafeURL(aksiListing(d.IsEdit, d.ServiceID)) }
+					method="post"
+					class="mt-6"
+					novalidate
+					x-data="formHarga"
+					data-jenis={ nilaiAtau(d.Form.Value("price_type"), "fixed") }
+				>
+					<div class="sm:surface-panel sm:p-6">
+						@components.Field("title", "Judul jasa", "Tulis seperti yang dicari pelanggan. Minimal 10 karakter.", d.Form.Err("title")) {
+							<input
+								id="title"
+								name="title"
+								type="text"
+								class="input"
+								placeholder="Cuci AC rumah + isi freon"
+								value={ d.Form.Value("title") }
+								aria-invalid={ ditekan(d.Form.HasErr("title")) }
+								maxlength="140"
+								required
+							/>
+						}
+						@components.Field("category_id", "Kategori", "", d.Form.Err("category_id")) {
+							<select id="category_id" name="category_id" class="input" required>
+								<option value="">Pilih kategori</option>
+								for _, induk := range d.Kategori {
+									if len(induk.Children) > 0 {
+										<optgroup label={ induk.Name }>
+											for _, anak := range induk.Children {
+												@opsiKategori(anak, d.Form.Value("category_id"))
+											}
+										</optgroup>
+									} else {
+										@opsiKategori(induk, d.Form.Value("category_id"))
+									}
+								}
+							</select>
+						}
+						@components.Field("description", "Deskripsi pekerjaan", "Minimal 30 karakter. Jelaskan cakupan kerja, lama pengerjaan, dan apa yang tidak termasuk.", d.Form.Err("description")) {
+							<textarea
+								id="description"
+								name="description"
+								class="input input-textarea"
+								rows="6"
+								placeholder="Cuci AC split 0,5–2 PK, termasuk pembersihan indoor & outdoor, cek tekanan freon. Pengerjaan sekitar 45 menit per unit. Biaya freon dihitung terpisah."
+								aria-invalid={ ditekan(d.Form.HasErr("description")) }
+								required
+							>{ d.Form.Value("description") }</textarea>
+						}
+						<div class="mb-4">
+							<span class="field-label">Jenis harga</span>
+							<div class="grid grid-cols-3 gap-2">
+								@pilihanHarga("fixed", "Harga tetap", d.Form.Value("price_type"))
+								@pilihanHarga("hourly", "Per jam", d.Form.Value("price_type"))
+								@pilihanHarga("negotiable", "Nego", d.Form.Value("price_type"))
+							</div>
+							if d.Form.HasErr("price_type") {
+								<p class="field-error">
+									@components.Icon("peringatan", "h-3.5 w-3.5 shrink-0 mt-0.5")
+									<span>{ d.Form.Err("price_type") }</span>
+								</p>
+							}
+						</div>
+						<!-- Kolom harga disembunyikan saat jenis harga "Nego" dipilih. -->
+						<div x-show="pakaiHarga" x-cloak class="grid grid-cols-1 gap-x-4 sm:grid-cols-2">
+							@components.Field("price_min", "Harga mulai dari", "Dalam rupiah, tanpa titik.", d.Form.Err("price_min")) {
+								<div class="relative">
+									<span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm font-semibold" style="color: var(--text-subtle)">Rp</span>
+									<input
+										id="price_min"
+										name="price_min"
+										type="text"
+										inputmode="numeric"
+										data-rupiah
+										class="input pl-10"
+										placeholder="150.000"
+										value={ d.Form.Value("price_min") }
+										aria-invalid={ ditekan(d.Form.HasErr("price_min")) }
+									/>
+								</div>
+							}
+							<div x-show="pakaiRentang" x-cloak>
+								@components.Field("price_max", "Sampai (opsional)", "Kosongkan bila harga tunggal.", d.Form.Err("price_max")) {
+									<div class="relative">
+										<span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm font-semibold" style="color: var(--text-subtle)">Rp</span>
+										<input
+											id="price_max"
+											name="price_max"
+											type="text"
+											inputmode="numeric"
+											data-rupiah
+											class="input pl-10"
+											placeholder="300.000"
+											value={ d.Form.Value("price_max") }
+											aria-invalid={ ditekan(d.Form.HasErr("price_max")) }
+										/>
+									</div>
+								}
+							</div>
+						</div>
+						if d.IsEdit {
+							<div class="mt-2 divider pt-4">
+								<label class="flex items-start gap-3">
+									<input
+										type="checkbox"
+										name="status"
+										value="inactive"
+										class="mt-1 h-4 w-4 rounded-xs"
+										checked?={ d.Form.Value("status") == "inactive" }
+									/>
+									<span>
+										<span class="block text-sm font-semibold">Sembunyikan listing ini</span>
+										<span class="block text-xs" style="color: var(--text-muted)">
+											Listing tidak muncul di pencarian, tapi datanya tetap tersimpan.
+										</span>
+									</span>
+								</label>
+							</div>
+						}
+					</div>
+					<div class="mt-6 flex flex-col gap-2 sm:flex-row-reverse">
+						<button type="submit" class="btn btn-primary btn-lg sm:min-w-[12rem]">
+							if d.IsEdit {
+								Simpan perubahan
+							} else {
+								Simpan & tambah foto
+							}
+						</button>
+						<a href="/dasbor" class="btn btn-secondary btn-lg">Batal</a>
+					</div>
+				</form>
+				if d.IsEdit {
+					@PanelFoto(d)
+				} else {
+					<p class="mt-6 flex items-start gap-2 text-xs" style="color: var(--text-muted)">
+						@components.Icon("foto", "h-4 w-4 shrink-0")
+						<span>Foto bisa ditambahkan setelah listing tersimpan.</span>
+					</p>
+				}
+			</div>
+		</div>
+	}
+}
+
+// PanelFoto mengelola foto listing. Unggah dan hapus dilakukan lewat HTMX
+// sehingga isian form di atasnya tidak ikut hilang.
+templ PanelFoto(d view.ListingFormData) {
+	<section class="mt-8" aria-labelledby="judul-foto">
+		<div class="mb-3 flex items-end justify-between gap-4">
+			<div>
+				<h2 id="judul-foto" class="text-lg font-bold">Foto pekerjaan</h2>
+				<p class="text-sm" style="color: var(--text-muted)">
+					Foto pertama dipakai sebagai sampul. Maksimal { strconv.Itoa(d.MaxImages) } foto,
+					{ strconv.FormatInt(d.MaxSizeMB, 10) } MB per foto.
+				</p>
+			</div>
+		</div>
+		<div id="daftar-foto">
+			@DaftarFoto(d)
+		</div>
+	</section>
+}
+
+// DaftarFoto adalah fragmen yang ditukar HTMX setelah unggah atau hapus foto.
+templ DaftarFoto(d view.ListingFormData) {
+	<div class="grid grid-cols-3 gap-2 sm:grid-cols-4">
+		for i, img := range d.Images {
+			<figure class="relative overflow-hidden rounded-md" style="border: 1px solid var(--border)">
+				<img src={ img.Tampil() } alt={ fmt.Sprintf("Foto %d", i+1) } loading="lazy" class="aspect-square w-full object-cover"/>
+				if i == 0 {
+					<figcaption
+						class="absolute inset-x-0 bottom-0 px-2 py-1 text-2xs font-semibold backdrop-blur"
+						style="background-color: var(--nav-blur); color: var(--text)"
+					>Sampul</figcaption>
+				}
+				<button
+					type="button"
+					class="absolute right-1 top-1 inline-flex h-7 w-7 items-center justify-center rounded-full backdrop-blur"
+					style="background-color: var(--nav-blur); color: var(--danger)"
+					aria-label={ fmt.Sprintf("Hapus foto %d", i+1) }
+					hx-delete={ fmt.Sprintf("/jasa/%d/foto/%d", d.ServiceID, img.ID) }
+					hx-target="#daftar-foto"
+					hx-swap="innerHTML"
+					hx-confirm="Hapus foto ini?"
+				>
+					@components.Icon("tutup", "h-4 w-4")
+				</button>
+			</figure>
+		}
+		if d.SisaFoto() > 0 {
+			<form
+				hx-post={ fmt.Sprintf("/jasa/%d/foto", d.ServiceID) }
+				hx-target="#daftar-foto"
+				hx-swap="innerHTML"
+				hx-encoding="multipart/form-data"
+				hx-indicator="#indikator-foto"
+				class="contents"
+			>
+				<label
+					class="flex aspect-square cursor-pointer flex-col items-center justify-center gap-1 rounded-md text-center transition-colors"
+					style="border: 1px dashed var(--border-strong); color: var(--text-muted)"
+				>
+					@components.Icon("unggah", "h-5 w-5")
+					<span class="px-1 text-2xs font-semibold">Tambah foto</span>
+					<input
+						type="file"
+						name="foto"
+						accept="image/jpeg,image/png,image/webp"
+						multiple
+						class="sr-only"
+						data-kirim-otomatis
+					/>
+				</label>
+			</form>
+		}
+	</div>
+	<div class="mt-2 flex items-center gap-3">
+		<span id="indikator-foto">
+			@components.Spinner("")
+		</span>
+		if d.Form.HasErr("foto") {
+			<p class="field-error !mt-0">
+				@components.Icon("peringatan", "h-3.5 w-3.5 shrink-0")
+				<span>{ d.Form.Err("foto") }</span>
+			</p>
+		}
+	</div>
+}
+
+// pilihanHarga adalah tombol radio bergaya segmented control.
+// Penyorotan pilihan aktif ditangani CSS (.segmen:has(input:checked)),
+// sehingga tampilannya benar bahkan sebelum Alpine selesai dimuat.
+templ pilihanHarga(value string, label string, current string) {
+	<label class="segmen flex cursor-pointer items-center justify-center rounded-md px-2 py-2 text-center text-sm font-semibold transition-colors">
+		<!-- Handler dipasang pada radio-nya sendiri, bukan pada form, supaya
+		     perubahan pada isian lain (kategori, judul) tidak ikut tertangkap. -->
+		<input
+			type="radio"
+			name="price_type"
+			value={ value }
+			class="sr-only"
+			x-on:change="pilih"
+			checked?={ current == value || (current == "" && value == "fixed") }
+		/>
+		{ label }
+	</label>
+}
+
+templ opsiKategori(k model.Category, current string) {
+	if strconv.FormatInt(k.ID, 10) == current {
+		<option value={ strconv.FormatInt(k.ID, 10) } selected>{ k.Name }</option>
+	} else {
+		<option value={ strconv.FormatInt(k.ID, 10) }>{ k.Name }</option>
+	}
+}
+
+func aksiListing(isEdit bool, id int64) string {
+	if isEdit {
+		return fmt.Sprintf("/jasa/%d/ubah", id)
+	}
+	return "/jasa/baru"
+}
+
+func nilaiAtau(v string, fallback string) string {
+	if v == "" {
+		return fallback
+	}
+	return v
+}

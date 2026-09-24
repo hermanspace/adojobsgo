@@ -1,0 +1,235 @@
+package pages
+
+import (
+	"fmt"
+	"strconv"
+	"strings"
+
+	"github.com/hermansyah/adojobsid/internal/model"
+	"github.com/hermansyah/adojobsid/internal/repository"
+	"github.com/hermansyah/adojobsid/internal/view"
+	"github.com/hermansyah/adojobsid/web/templates/components"
+	"github.com/hermansyah/adojobsid/web/templates/layout"
+)
+
+// AdminPromosi adalah antrean pengajuan: satu tab per tahap keputusan.
+templ AdminPromosi(d view.AdminPromosiData) {
+	@layout.AdminBase(d.AdminBase) {
+		<div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+			<nav class="flex flex-wrap gap-1" aria-label="Tahap">
+				@tabPromosi(d, "menunggu", "Menunggu")
+				@tabPromosi(d, "bayar", "Menunggu bayar")
+				@tabPromosi(d, "tayang", "Tayang")
+				@tabPromosi(d, "riwayat", "Riwayat")
+			</nav>
+			<nav class="flex flex-wrap gap-1" aria-label="Jenis">
+				@filterJenis(d, "", "Semua")
+				for _, j := range model.JenisPromosi {
+					@filterJenis(d, j, model.LabelJenisPromosi(j))
+				}
+			</nav>
+		</div>
+		if len(d.Items) == 0 {
+			@components.EmptyState("Tidak ada pengajuan di tahap ini", "Pengajuan baru dari pengguna akan muncul di tab Menunggu.") {
+			}
+		} else {
+			<div class="surface-panel overflow-x-auto">
+				<table class="tabel">
+					<thead>
+						<tr>
+							<th scope="col">Pengajuan</th>
+							<th scope="col" class="hidden md:table-cell">Pemohon</th>
+							<th scope="col" class="hidden lg:table-cell">Paket</th>
+							<th scope="col">Status</th>
+							<th scope="col"><span class="sr-only">Buka</span></th>
+						</tr>
+					</thead>
+					<tbody>
+						for _, b := range d.Items {
+							@barisPromosiAdmin(b, d.Sasaran(b))
+						}
+					</tbody>
+				</table>
+			</div>
+			<p class="mt-3 text-xs" style="color: var(--text-muted)">{ strconv.Itoa(d.Total) } pengajuan · halaman { strconv.Itoa(d.Page) } dari { strconv.Itoa(max(d.TotalPages, 1)) }</p>
+		}
+	}
+}
+
+templ tabPromosi(d view.AdminPromosiData, tab string, label string) {
+	<a href={ templ.SafeURL(d.URLTab(tab)) } class={ "chip", templ.KV("is-active", d.Tab == tab) }>{ label }</a>
+}
+
+templ filterJenis(d view.AdminPromosiData, jenis string, label string) {
+	<a href={ templ.SafeURL(d.URLJenis(jenis)) } class={ "chip", templ.KV("is-active", d.Jenis == jenis) }>{ label }</a>
+}
+
+templ barisPromosiAdmin(b repository.PromosiAdminRow, sasaran string) {
+	<tr>
+		<td>
+			<span class="block font-semibold">{ sasaran }</span>
+			<span class="block text-xs" style="color: var(--text-muted)">
+				{ model.LabelJenisPromosi(b.Jenis) } · { view.WaktuRelatif(b.CreatedAt) }
+				if b.Sumber == model.SumberAdmin {
+					· ditetapkan pengelola
+				}
+				if b.BuktiBayarURL != nil && b.Status == model.StatusDisetujui {
+					· <span class="font-semibold" style="color: var(--text)">bukti bayar masuk</span>
+				}
+			</span>
+		</td>
+		<td class="hidden md:table-cell">{ b.NamaPemohon }</td>
+		<td class="hidden text-xs lg:table-cell" style="color: var(--text-muted)">
+			if b.NamaPaket != nil {
+				{ *b.NamaPaket }
+			} else {
+				—
+			}
+		</td>
+		<td><span class={ view.KelasStatusPromosi(b.Status) }>{ model.LabelStatusPromosi(b.Status) }</span></td>
+		<td class="text-right"><a href={ templ.SafeURL(fmt.Sprintf("/admin/promosi/%d", b.ID)) } class="btn btn-ghost btn-sm">Tinjau</a></td>
+	</tr>
+}
+
+// AdminPromosiDetail menampilkan pengajuan lengkap dan tindakan yang sah
+// pada statusnya saat ini — tombol yang tidak berlaku tidak dirender.
+templ AdminPromosiDetail(d view.AdminPromosiDetailData) {
+	@layout.AdminBase(d.AdminBase) {
+		<a href="/admin/promosi" class="mb-4 inline-flex items-center gap-1 text-sm font-medium" style="color: var(--text-muted)">
+			@components.Icon("panah-kiri", "h-4 w-4")
+			Antrean promosi
+		</a>
+		<div class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
+			<section>
+				<div class="mb-4 flex flex-wrap items-center gap-3">
+					<h2 class="text-lg font-bold">{ model.LabelJenisPromosi(d.Promosi.Jenis) }</h2>
+					<span class={ view.KelasStatusPromosi(d.Promosi.Status) }>{ model.LabelStatusPromosi(d.Promosi.Status) }</span>
+					if d.Promosi.Sumber == model.SumberAdmin {
+						<span class="tanda">Ditetapkan pengelola</span>
+					}
+				</div>
+				<div class="surface-panel divide-y" style="border-color: var(--border)">
+					if d.Pemohon != nil {
+						@barisRincian("Pemohon", d.Pemohon.FullName+" · "+d.Pemohon.Phone)
+					}
+					if d.JudulJasa != "" && d.Promosi.ServiceID != nil {
+						<div class="flex justify-between gap-4 px-4 py-3 text-sm">
+							<span style="color: var(--text-muted)">Jasa</span>
+							<a href={ templ.SafeURL(fmt.Sprintf("/jasa/%d", *d.Promosi.ServiceID)) } class="font-medium hover:underline" style="color: var(--primary-solid)">{ d.JudulJasa }</a>
+						</div>
+					}
+					if d.NamaPenyedia != "" {
+						<div class="flex justify-between gap-4 px-4 py-3 text-sm">
+							<span style="color: var(--text-muted)">Penyedia</span>
+							<a href={ templ.SafeURL(view.URLPenyedia(d.SlugPenyedia)) } class="font-medium hover:underline" style="color: var(--primary-solid)">{ d.NamaPenyedia }</a>
+						</div>
+					}
+					if d.Paket != nil {
+						@barisRincian("Paket", d.Paket.Nama+" · "+strconv.Itoa(d.Paket.DurasiHari)+" hari · "+labelHargaPaket(*d.Paket))
+					}
+					if d.Promosi.Alasan != nil && *d.Promosi.Alasan != "" {
+						@barisRincian("Alasan pemohon", *d.Promosi.Alasan)
+					}
+					if d.Promosi.Judul != nil {
+						@barisRincian("Judul iklan", *d.Promosi.Judul)
+					}
+					if d.Promosi.Deskripsi != nil && *d.Promosi.Deskripsi != "" {
+						@barisRincian("Keterangan", *d.Promosi.Deskripsi)
+					}
+					if d.Promosi.TautanURL != nil {
+						@barisRincian("Tautan", *d.Promosi.TautanURL)
+					}
+					if d.Promosi.Jenis == model.PromosiIklan {
+						if len(d.Promosi.TargetKecamatan) > 0 {
+							@barisRincian("Kecamatan sasaran", strings.Join(d.Promosi.TargetKecamatan, ", "))
+						} else {
+							@barisRincian("Kecamatan sasaran", "Seluruh kabupaten")
+						}
+					}
+					@barisRincian("Diajukan", view.WaktuRelatif(d.Promosi.CreatedAt))
+					if d.Promosi.MulaiAt != nil && d.Promosi.SelesaiAt != nil {
+						@barisRincian("Masa tayang", d.Promosi.MulaiAt.Format("2 Jan 2006")+" – "+d.Promosi.SelesaiAt.Format("2 Jan 2006"))
+					}
+					if d.Promosi.CatatanAdmin != nil {
+						@barisRincian("Catatan pengelola", *d.Promosi.CatatanAdmin)
+					}
+					if d.Promosi.Status == model.StatusAktif || d.Promosi.Status == model.StatusSelesai {
+						@barisRincian("Tayang / klik", strconv.FormatInt(d.Promosi.Tayang, 10)+" / "+strconv.FormatInt(d.Promosi.Klik, 10))
+					}
+				</div>
+				if d.Promosi.GambarURL != nil {
+					<div class="surface-panel mt-4 p-4">
+						<p class="mb-2 text-xs font-semibold uppercase tracking-widest" style="color: var(--text-muted)">Materi iklan</p>
+						<img src={ *d.Promosi.GambarURL } alt={ view.Deref(d.Promosi.Judul) } class="w-full rounded-md" style="max-height: 320px; object-fit: contain; background-color: var(--surface)"/>
+					</div>
+				}
+				if d.Promosi.BuktiBayarURL != nil {
+					<div class="surface-panel mt-4 p-4">
+						<p class="mb-2 text-xs font-semibold uppercase tracking-widest" style="color: var(--text-muted)">
+							Bukti pembayaran
+							if d.Promosi.DibayarAt != nil {
+								· dikirim { view.WaktuRelatif(*d.Promosi.DibayarAt) }
+							}
+						</p>
+						<a href={ templ.SafeURL(*d.Promosi.BuktiBayarURL) } target="_blank" rel="noopener">
+							<img src={ *d.Promosi.BuktiBayarURL } alt="Bukti pembayaran" class="w-full rounded-md" style="max-height: 420px; object-fit: contain; background-color: var(--surface)"/>
+						</a>
+					</div>
+				}
+			</section>
+			<aside class="lg:sticky lg:top-24 lg:self-start">
+				<div class="surface-panel flex flex-col gap-2 p-4">
+					<p class="mb-1 text-xs font-semibold uppercase tracking-widest" style="color: var(--text-muted)">Tindakan</p>
+					if d.Boleh(model.StatusDisetujui) || (d.Promosi.Status == model.StatusMenunggu && d.Boleh(model.StatusAktif)) {
+						<form action={ templ.SafeURL(fmt.Sprintf("/admin/promosi/%d/setujui", d.Promosi.ID)) } method="post">
+							<button type="submit" class="btn btn-primary w-full">Setujui</button>
+						</form>
+					}
+					if d.PerluKonfirmasiBayar() {
+						<form action={ templ.SafeURL(fmt.Sprintf("/admin/promosi/%d/konfirmasi", d.Promosi.ID)) } method="post">
+							<button type="submit" class="btn btn-primary w-full">Konfirmasi pembayaran &amp; tayangkan</button>
+						</form>
+					} else if d.Promosi.Status == model.StatusDisetujui {
+						<p class="text-xs" style="color: var(--text-muted)">Menunggu pemohon mengirim bukti pembayaran.</p>
+						<form action={ templ.SafeURL(fmt.Sprintf("/admin/promosi/%d/konfirmasi", d.Promosi.ID)) } method="post">
+							<button type="submit" class="btn btn-secondary w-full">Tayangkan tanpa bukti</button>
+						</form>
+					}
+					if d.Boleh(model.StatusDijeda) {
+						<form action={ templ.SafeURL(fmt.Sprintf("/admin/promosi/%d/jeda", d.Promosi.ID)) } method="post">
+							<button type="submit" class="btn btn-secondary w-full">Jeda</button>
+						</form>
+					}
+					if d.Promosi.Status == model.StatusDijeda {
+						<form action={ templ.SafeURL(fmt.Sprintf("/admin/promosi/%d/lanjutkan", d.Promosi.ID)) } method="post">
+							<button type="submit" class="btn btn-primary w-full">Lanjutkan</button>
+						</form>
+					}
+					if d.Boleh(model.StatusDihentikan) {
+						<form action={ templ.SafeURL(fmt.Sprintf("/admin/promosi/%d/hentikan", d.Promosi.ID)) } method="post">
+							<button type="submit" class="btn btn-danger w-full">Hentikan</button>
+						</form>
+					}
+					if d.Boleh(model.StatusDitolak) {
+						<form action={ templ.SafeURL(fmt.Sprintf("/admin/promosi/%d/tolak", d.Promosi.ID)) } method="post" class="mt-2 border-t pt-3" style="border-color: var(--border)" novalidate>
+							@components.Field("catatan", "Tolak dengan alasan", "Tampil ke pemohon.", d.Form.Err("catatan")) {
+								<textarea id="catatan" name="catatan" rows="3" class="input input-textarea" placeholder="Misalnya: gambar tidak jelas, atau jasa belum lengkap.">{ d.Form.Value("catatan") }</textarea>
+							}
+							<button type="submit" class="btn btn-danger w-full">Tolak</button>
+						</form>
+					}
+					if model.StatusAkhir(d.Promosi.Status) {
+						<p class="text-xs" style="color: var(--text-muted)">Pengajuan ini sudah selesai dan tidak bisa diubah.</p>
+					}
+				</div>
+			</aside>
+		</div>
+	}
+}
+
+func labelHargaPaket(p model.PaketPromosi) string {
+	if p.Gratis() {
+		return "gratis"
+	}
+	return view.RupiahLabel(p.Harga)
+}

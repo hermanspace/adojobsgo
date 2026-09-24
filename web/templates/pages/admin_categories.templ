@@ -1,0 +1,189 @@
+package pages
+
+import (
+	"fmt"
+	"strconv"
+
+	"github.com/hermansyah/adojobsid/internal/repository"
+	"github.com/hermansyah/adojobsid/internal/view"
+	"github.com/hermansyah/adojobsid/web/templates/components"
+	"github.com/hermansyah/adojobsid/web/templates/layout"
+)
+
+// AdminCategories adalah halaman kelola kategori dan sub-kategori.
+templ AdminCategories(d view.AdminCategoriesData) {
+	@layout.AdminBase(d.AdminBase) {
+		<div class="grid gap-6 lg:grid-cols-[1fr_320px]">
+			<section aria-labelledby="judul-daftar-kategori">
+				<h2 id="judul-daftar-kategori" class="sr-only">Daftar kategori</h2>
+				<div class="surface-panel overflow-x-auto">
+					<table class="tabel">
+						<thead>
+							<tr>
+								<th scope="col">Kategori</th>
+								<th scope="col">Slug</th>
+								<th scope="col" class="hidden sm:table-cell">Listing</th>
+								<th scope="col"><span class="sr-only">Tindakan</span></th>
+							</tr>
+						</thead>
+						<tbody>
+							for _, k := range d.Items {
+								@barisKategori(k, d.EditID)
+							}
+						</tbody>
+					</table>
+				</div>
+				if len(d.Items) == 0 {
+					@components.EmptyState("Belum ada kategori", "Tambahkan kategori pertama lewat formulir di samping.") {
+					}
+				}
+			</section>
+			<aside class="lg:sticky lg:top-24 lg:self-start">
+				@FormKategori(d)
+			</aside>
+		</div>
+	}
+}
+
+templ barisKategori(k repository.CategoryRow, editID int64) {
+	<tr class={ templ.KV("baris-nonaktif", false) }>
+		<td>
+			<div class="flex items-center gap-2">
+				if k.ParentID != nil {
+					<!-- Sub-kategori diberi indentasi agar hierarkinya terbaca sekilas. -->
+					<span class="ml-4 shrink-0" style="color: var(--text-subtle)" aria-hidden="true">└</span>
+				}
+				<span class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md" style="background-color: var(--primary-soft); color: var(--primary-solid)">
+					@components.Icon(ikonKategori(k.Icon), "h-4 w-4")
+				</span>
+				<span class="min-w-0">
+					<span class="clamp-1 font-semibold">{ k.Name }</span>
+					if k.ParentID == nil && k.TotalAnak > 0 {
+						<span class="block text-2xs" style="color: var(--text-subtle)">
+							{ strconv.Itoa(k.TotalAnak) } sub-kategori
+						</span>
+					}
+				</span>
+			</div>
+		</td>
+		<td>
+			<code class="text-xs" style="color: var(--text-muted)">{ k.Slug }</code>
+		</td>
+		<td class="hidden sm:table-cell">
+			if k.TotalListing > 0 {
+				<span class="text-sm tabular-nums">{ strconv.Itoa(k.TotalListing) }</span>
+			} else {
+				<span class="text-sm" style="color: var(--text-subtle)">0</span>
+			}
+		</td>
+		<td>
+			<div class="flex items-center justify-end gap-2">
+				<a
+					href={ templ.SafeURL(fmt.Sprintf("/admin/kategori?edit=%d", k.ID)) }
+					class={ "btn btn-secondary btn-sm", templ.KV("!border-brand", editID == k.ID) }
+				>Ubah</a>
+				<!-- Penghapusan hanya ditawarkan bila kategori benar-benar bisa
+				     dihapus; sisanya ditolak service layer dengan penjelasan. -->
+				if k.TotalListing == 0 && k.TotalAnak == 0 {
+					<form
+						method="post"
+						action={ templ.SafeURL(fmt.Sprintf("/admin/kategori/%d/hapus", k.ID)) }
+						hx-post={ fmt.Sprintf("/admin/kategori/%d/hapus", k.ID) }
+						hx-confirm={ fmt.Sprintf("Hapus kategori %q?", k.Name) }
+						hx-target="body"
+						hx-swap="outerHTML"
+					>
+						<button type="submit" class="btn btn-danger btn-sm">Hapus</button>
+					</form>
+				} else {
+					<span
+						class="btn btn-secondary btn-sm !cursor-not-allowed opacity-40"
+						aria-disabled="true"
+						title="Masih dipakai listing atau punya sub-kategori"
+					>Hapus</span>
+				}
+			</div>
+		</td>
+	</tr>
+}
+
+// FormKategori dipakai untuk menambah maupun mengubah kategori.
+templ FormKategori(d view.AdminCategoriesData) {
+	<div class="surface-panel p-5">
+		<h2 class="mb-1 text-base font-bold">
+			if d.IsEdit {
+				Ubah kategori
+			} else {
+				Tambah kategori
+			}
+		</h2>
+		<p class="mb-4 text-xs" style="color: var(--text-muted)">
+			Kategori dibatasi dua tingkat: kategori utama dan sub-kategorinya.
+		</p>
+		<form action={ templ.SafeURL(aksiKategori(d.IsEdit, d.EditID)) } method="post" novalidate>
+			@components.Field("nama", "Nama kategori", "", d.Form.Err("nama")) {
+				<input
+					id="nama"
+					name="nama"
+					type="text"
+					class="input"
+					value={ d.Form.Value("nama") }
+					placeholder="Servis AC"
+					required
+				/>
+			}
+			@components.Field("slug", "Slug", "Dikosongkan berarti dibuat otomatis dari nama.", d.Form.Err("slug")) {
+				<input
+					id="slug"
+					name="slug"
+					type="text"
+					class="input"
+					value={ d.Form.Value("slug") }
+					placeholder="servis-ac"
+				/>
+			}
+			@components.Field("parent_id", "Kategori induk", "Kosongkan untuk membuat kategori utama.", d.Form.Err("parent_id")) {
+				<select id="parent_id" name="parent_id" class="input">
+					<option value="">— Kategori utama —</option>
+					for _, induk := range d.Induk {
+						if d.Form.Selected("parent_id", strconv.FormatInt(induk.ID, 10)) {
+							<option value={ strconv.FormatInt(induk.ID, 10) } selected>{ induk.Name }</option>
+						} else {
+							<option value={ strconv.FormatInt(induk.ID, 10) }>{ induk.Name }</option>
+						}
+					}
+				</select>
+			}
+			@components.Field("icon", "Ikon", "", d.Form.Err("icon")) {
+				<select id="icon" name="icon" class="input">
+					for _, i := range d.Ikon {
+						if d.Form.Selected("icon", i.Nama) {
+							<option value={ i.Nama } selected>{ i.Label }</option>
+						} else {
+							<option value={ i.Nama }>{ i.Label }</option>
+						}
+					}
+				</select>
+			}
+			<div class="mt-2 flex flex-col gap-2">
+				<button type="submit" class="btn btn-primary w-full">
+					if d.IsEdit {
+						Simpan perubahan
+					} else {
+						Tambah kategori
+					}
+				</button>
+				if d.IsEdit {
+					<a href="/admin/kategori" class="btn btn-secondary w-full">Batal</a>
+				}
+			</div>
+		</form>
+	</div>
+}
+
+func aksiKategori(isEdit bool, id int64) string {
+	if isEdit {
+		return fmt.Sprintf("/admin/kategori/%d", id)
+	}
+	return "/admin/kategori"
+}

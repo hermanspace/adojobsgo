@@ -1,0 +1,86 @@
+package pages
+
+import (
+	"github.com/hermansyah/adojobsid/internal/view"
+	"github.com/hermansyah/adojobsid/web/templates/components"
+	"github.com/hermansyah/adojobsid/web/templates/layout"
+)
+
+// ProviderForm dipakai untuk membuat maupun menyunting profil penyedia jasa.
+templ ProviderForm(d view.ProviderFormData) {
+	@layout.Base(d.Base) {
+		<div class="container-app py-6 md:py-10">
+			<div class="mx-auto max-w-2xl">
+				<a href={ templ.SafeURL(kembaliKe(d.IsEdit)) } class="mb-4 inline-flex items-center gap-1 text-sm font-medium" style="color: var(--text-muted)">
+					@components.Icon("panah-kiri", "h-4 w-4")
+					Kembali
+				</a>
+				<h1 class="font-display text-2xl font-extrabold sm:text-3xl">
+					if d.IsEdit {
+						Ubah profil penyedia
+					} else {
+						Jadi penyedia jasa
+					}
+				</h1>
+				<p class="mt-2 max-w-prose text-sm" style="color: var(--text-muted)">
+					if d.IsEdit {
+						Perbarui deskripsi, nomor WhatsApp, dan area layanan Anda.
+					} else {
+						Lengkapi profil sekali saja. Setelah ini Anda bisa langsung memasang jasa.
+					}
+				</p>
+				@components.FlashMessage(d.Flash)
+				<form action={ templ.SafeURL(aksiProvider(d.IsEdit)) } method="post" class="mt-6" novalidate>
+					<div class="sm:surface-panel sm:p-6">
+						@components.Field("whatsapp_number", "Nomor WhatsApp", "Opsional. Pelanggan menghubungi Anda lewat pesan di aplikasi; nomor ini hanya dipakai bila pengelola menyalakan tombol WhatsApp.", d.Form.Err("whatsapp_number")) {
+							<input
+								id="whatsapp_number"
+								name="whatsapp_number"
+								type="tel"
+								inputmode="tel"
+								class="input"
+								placeholder="0812xxxxxxx"
+								value={ d.Form.Value("whatsapp_number") }
+								aria-invalid={ ditekan(d.Form.HasErr("whatsapp_number")) }
+							/>
+						}
+						@components.Field("bio", "Ceritakan keahlian Anda", "Minimal 20 karakter. Sebutkan pengalaman dan jenis pekerjaan yang biasa Anda tangani.", d.Form.Err("bio")) {
+							<textarea
+								id="bio"
+								name="bio"
+								class="input input-textarea"
+								rows="5"
+								placeholder="Contoh: Tukang servis AC sejak 2015. Menangani cuci AC, isi freon, bongkar-pasang unit untuk rumah dan kantor di Bengkalis dan Bantan."
+								aria-invalid={ ditekan(d.Form.HasErr("bio")) }
+							>{ d.Form.Value("bio") }</textarea>
+						}
+					</div>
+					<div class="mt-6 flex flex-col gap-2 sm:flex-row-reverse">
+						<button type="submit" class="btn btn-primary btn-lg sm:min-w-[12rem]">
+							if d.IsEdit {
+								Simpan perubahan
+							} else {
+								Simpan & lanjut pasang jasa
+							}
+						</button>
+						<a href={ templ.SafeURL(kembaliKe(d.IsEdit)) } class="btn btn-secondary btn-lg">Batal</a>
+					</div>
+				</form>
+			</div>
+		</div>
+	}
+}
+
+func aksiProvider(isEdit bool) string {
+	if isEdit {
+		return "/provider/profil"
+	}
+	return "/provider/daftar"
+}
+
+func kembaliKe(isEdit bool) string {
+	if isEdit {
+		return "/dasbor"
+	}
+	return "/"
+}

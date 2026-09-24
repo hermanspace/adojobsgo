@@ -1,0 +1,21 @@
+# Kredensial
+.env
+.env.local
+.env.prod
+/secrets
+
+# Hasil build
+/web/static/css/app.css
+/node_modules
+/tmp
+/bin
+
+# Cadangan basis data
+/backups
+
+# Berkas sistem
+.DS_Store
+*.log
+
+# Alat lokal
+.claude/

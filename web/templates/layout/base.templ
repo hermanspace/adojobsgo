@@ -1,0 +1,235 @@
+package layout
+
+import (
+	"github.com/hermansyah/adojobsid/internal/view"
+	"github.com/hermansyah/adojobsid/web/templates/components"
+)
+
+// Base adalah kerangka setiap halaman web.
+// Susunan mobile-first: konten utama diberi padding bawah agar tidak tertutup
+// navigasi bawah, yang hanya muncul di layar kecil.
+templ Base(b view.Base) {
+	<!DOCTYPE html>
+	<html lang="id" class="theme-loading">
+		<head>
+			<meta charset="utf-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+			<title>{ pageTitle(b.Title, b.Situs.Nama) }</title>
+			<meta name="description" content={ b.Description }/>
+			<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)"/>
+			<meta name="theme-color" content="#0b0b12" media="(prefers-color-scheme: dark)"/>
+			<link rel="icon" href="/static/img/favicon.svg" type="image/svg+xml"/>
+			<link rel="apple-touch-icon" href="/static/img/ikon-192.png"/>
+			<!-- Manifest dibuat server dari pengaturan situs, supaya nama dan warnanya
+			     satu sumber dengan halaman. Tanpa service worker: Chrome modern tidak
+			     lagi mewajibkannya untuk pemasangan. -->
+			<link rel="manifest" href="/manifest.webmanifest"/>
+			<!-- Font dimuat lebih awal karena judul memakai Bricolage Grotesque di layar pertama. -->
+			<link rel="preload" href="/static/fonts/plus-jakarta-sans-latin.woff2" as="font" type="font/woff2" crossorigin/>
+			<link rel="preload" href="/static/fonts/bricolage-grotesque-latin.woff2" as="font" type="font/woff2" crossorigin/>
+			<link rel="stylesheet" href={ b.Assets.URL("/static/css/app.css") }/>
+			<!-- Leaflet di-self-host dan hanya dimuat di halaman berpeta; tile-nya
+			     dari OpenStreetMap, sudah diizinkan khusus di CSP. -->
+			if b.PakaiPeta {
+				<link rel="stylesheet" href={ b.Assets.URL("/static/vendor/leaflet/leaflet.css") }/>
+			}
+			<!-- Dijalankan sinkron sebelum body agar mode gelap tidak berkedip saat halaman dibuka. -->
+			<script src={ b.Assets.URL("/static/js/theme-init.js") }></script>
+			<script src={ b.Assets.URL("/static/js/htmx.min.js") } defer></script>
+			<!-- app.js harus dieksekusi sebelum alpine.min.js: Alpine memancarkan
+			     alpine:init segera setelah dimuat, jadi komponennya perlu sudah
+			     terdaftar lebih dulu. Skrip defer berjalan sesuai urutan di sini. -->
+			if b.PakaiPeta {
+				<script src={ b.Assets.URL("/static/vendor/leaflet/leaflet.js") } defer></script>
+			}
+			<script src={ b.Assets.URL("/static/js/app.js") } defer></script>
+			<script src={ b.Assets.URL("/static/js/alpine.min.js") } defer></script>
+		</head>
+		<!-- hx-headers sengaja tidak dipakai: htmx mem-parsing atributnya dengan
+		     Function('return (…)'), yang selalu diblokir CSP di sini. Header
+		     HX-Request yang dibutuhkan aplikasi sudah dikirim htmx sendiri. -->
+		<body class="min-h-screen">
+			<a href="#konten" class="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 btn btn-primary">
+				Lewati ke konten
+			</a>
+			@Header(b)
+			<main id="konten" class="pb-20 md:pb-12">
+				{ children... }
+			</main>
+			@Footer(b)
+			if TampilkanMenu(b.Path) {
+				@MenuUtama(b)
+			}
+			@BottomNav(b)
+		</body>
+	</html>
+}
+
+// Header: logo kiri, pencarian di tengah (desktop), aksi kanan.
+// Di mobile pencarian dipindah ke halaman cari agar header tetap ringkas.
+templ Header(b view.Base) {
+	<header class="sticky top-0 z-40" style="background-color: var(--nav-blur); backdrop-filter: saturate(180%) blur(12px); border-bottom: 1px solid var(--border)">
+		<div class="container-app flex h-14 items-center gap-4 md:h-16">
+			<a href="/" class="flex shrink-0 items-center gap-2" aria-label={ b.Situs.Nama + ", beranda" }>
+				@LogoSitus(b.Situs)
+			</a>
+			<form action="/cari" method="get" class="relative hidden flex-1 md:block" role="search">
+				<span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2" style="color: var(--text-subtle)">
+					@components.Icon("cari", "h-4 w-4")
+				</span>
+				<input
+					type="search"
+					name="q"
+					class="input pl-10"
+					placeholder="Cari jasa: servis AC, tukang, dekorasi…"
+					aria-label="Cari jasa"
+				/>
+			</form>
+			<div class="ml-auto flex items-center gap-1 md:gap-2">
+				<button
+					type="button"
+					data-theme-toggle
+					aria-pressed="false"
+					aria-label="Ganti ke mode gelap"
+					class="btn btn-ghost !min-h-0 h-9 w-9 !px-0"
+				>
+					<span class="dark:hidden">
+						@components.Icon("bulan", "h-5 w-5")
+					</span>
+					<span class="hidden dark:inline">
+						@components.Icon("matahari", "h-5 w-5")
+					</span>
+				</button>
+				if b.LoggedIn() {
+					<a href="/pesan" class="relative hidden btn btn-ghost !min-h-0 h-9 w-9 !px-0 md:inline-flex" aria-label="Pesan">
+						@components.Icon("pesanan", "h-5 w-5")
+						<span
+							id="badge-pesan"
+							hx-get="/pesan/badge"
+							hx-trigger="load, every 30s"
+							hx-swap="innerHTML"
+						>
+							@components.BadgeBelumDibacaInline(b.BelumDibaca)
+						</span>
+					</a>
+					<a href="/dasbor" class="hidden items-center gap-2 btn btn-ghost md:inline-flex">
+						@components.Avatar(b.User.AvatarURL, b.User.FullName, "h-7 w-7 text-2xs")
+						<span class="max-w-[9rem] truncate">{ b.User.FullName }</span>
+					</a>
+					if !b.User.IsProvider {
+						<a href="/provider/daftar" class="hidden btn btn-primary btn-sm md:inline-flex">Jadi penyedia</a>
+					} else {
+						<a href="/jasa/baru" class="hidden btn btn-primary btn-sm md:inline-flex">Pasang jasa</a>
+					}
+				} else {
+					<a href="/masuk" class="btn btn-ghost btn-sm">Masuk</a>
+					<a href="/daftar" class="btn btn-primary btn-sm">Daftar</a>
+				}
+			</div>
+		</div>
+	</header>
+}
+
+// Logo: wordmark tipografis dengan satu titik beraksen gradasi.
+// Tidak memakai gambar agar tetap tajam di semua kerapatan layar.
+templ Logo() {
+	<span class="font-display text-lg font-extrabold tracking-tight" style="color: var(--text)">
+		Ado<span style="background-image: linear-gradient(103deg, var(--primary-from), var(--primary-to)); -webkit-background-clip: text; background-clip: text; color: transparent">jobs</span>
+	</span>
+	<span class="hidden text-2xs font-semibold uppercase tracking-widest sm:inline" style="color: var(--text-subtle)">Bengkalis</span>
+}
+
+// BottomNav hanya tampil di layar kecil — pola navigasi utama untuk mobile.
+templ BottomNav(b view.Base) {
+	<nav class="bottom-nav fixed inset-x-0 bottom-0 z-40 flex md:hidden" aria-label="Navigasi utama">
+		@navItem("/", "beranda", "Beranda", b.ActiveNav)
+		@navItem("/cari", "cari", "Cari", b.ActiveNav)
+		if b.LoggedIn() && b.User.IsProvider {
+			@navItem("/jasa/baru", "tambah", "Pasang", b.ActiveNav)
+		} else {
+			@navItem("/provider/daftar", "tambah", "Jual jasa", b.ActiveNav)
+		}
+		if b.LoggedIn() {
+			@navItemBadge("/pesan", "pesanan", "Pesan", b.ActiveNav, b.BelumDibaca)
+			@navItem("/dasbor", "akun", "Akun", b.ActiveNav)
+		} else {
+			@navItem("/masuk", "pesanan", "Pesan", b.ActiveNav)
+			@navItem("/masuk", "akun", "Masuk", b.ActiveNav)
+		}
+	</nav>
+}
+
+// navItemBadge sama seperti navItem, ditambah penghitung pesan belum dibaca.
+templ navItemBadge(href string, icon string, label string, active string, jumlah int) {
+	<a
+		href={ templ.SafeURL(href) }
+		class={ "bottom-nav-item", templ.KV("is-active", active == icon) }
+		aria-current={ ariaCurrent(active == icon) }
+	>
+		<span class="relative">
+			@components.Icon(icon, "h-5 w-5")
+			@components.BadgeBelumDibacaInline(jumlah)
+		</span>
+		<span>{ label }</span>
+	</a>
+}
+
+// LogoSitus memakai logo unggahan admin bila ada, dan jatuh kembali ke
+// wordmark tipografis bila belum disetel.
+templ LogoSitus(s view.SitusRingkas) {
+	if s.LogoURL != "" {
+		<img src={ s.LogoURL } alt={ s.Nama } class="h-7 w-auto max-w-[9rem] object-contain"/>
+	} else {
+		@Logo()
+	}
+}
+
+templ navItem(href string, icon string, label string, active string) {
+	<a
+		href={ templ.SafeURL(href) }
+		class={ "bottom-nav-item", templ.KV("is-active", active == icon) }
+		aria-current={ ariaCurrent(active == icon) }
+	>
+		@components.Icon(icon, "h-5 w-5")
+		<span>{ label }</span>
+	</a>
+}
+
+templ Footer(b view.Base) {
+	<footer class="mt-12 hidden md:block" style="border-top: 1px solid var(--border)">
+		<div class="container-app flex flex-col gap-4 py-8 sm:flex-row sm:items-center sm:justify-between">
+			<div class="flex flex-col gap-1">
+				<span class="flex items-center gap-2">
+					@LogoSitus(b.Situs)
+				</span>
+				if b.Situs.TeksFooter != "" {
+					<p class="text-xs" style="color: var(--text-muted)">{ b.Situs.TeksFooter }</p>
+				}
+			</div>
+			<nav class="flex flex-wrap gap-x-6 gap-y-2 text-sm" aria-label="Tautan footer">
+				<a href="/cari" class="hover:underline" style="color: var(--text-muted)">Cari jasa</a>
+				<a href="/penyedia" class="hover:underline" style="color: var(--text-muted)">Penyedia jasa</a>
+				<a href="/provider/daftar" class="hover:underline" style="color: var(--text-muted)">Jadi penyedia</a>
+				<a href="/tentang" class="hover:underline" style="color: var(--text-muted)">Tentang</a>
+			</nav>
+		</div>
+	</footer>
+}
+
+// pageTitle memakai nama situs dari pengaturan admin, bukan nilai tetap.
+func pageTitle(title, namaSitus string) string {
+	if namaSitus == "" {
+		namaSitus = "Adojobs"
+	}
+	if title == "" {
+		return namaSitus + " — Cari jasa terdekat di sekitar Anda"
+	}
+	return title + " · " + namaSitus
+}
+
+func ariaCurrent(active bool) string {
+	if active {
+		return "page"
+	}
+	return "false"
+}
