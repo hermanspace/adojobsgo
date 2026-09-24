@@ -142,3 +142,17 @@ Ganti kategori tiap minggu: tukang bangunan, katering, dokumentasi, bersih rumah
 - Pertanyaan harga jasa: arahkan ke halaman jasa, jangan menjawab atas nama penyedia.
 - Keluhan: minta nomor pesanan lewat DM, jangan berdebat di komentar.
 - Jangan pernah meminta kata sandi atau kode OTP lewat DM.
+
+## Aset visual
+
+Semua di folder ini, dirender dari SVG (sumber ikut disimpan; ubah teks di
+SVG lalu render ulang dengan Chrome headless: `--window-size=1080,1080
+--screenshot=…`).
+
+| Berkas | Ukuran | Pakai untuk |
+|---|---|---|
+| `profil-1024.png` | 1024×1024 | Foto profil FB & IG (aman dipotong lingkaran) |
+| `cover-facebook.png` | 3280×1248 | Sampul halaman Facebook |
+| `post-01-peluncuran.png` | 1080×1080 | Postingan 1 |
+| `post-02-penyedia.png` | 1080×1080 | Postingan 2 |
+| `post-03-cara-kerja-1..3.png` | 1080×1080 | Postingan 3, carousel/album 3 slide |
