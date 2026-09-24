@@ -69,7 +69,7 @@ GO_RUN_FLAGS = --rm \
 GO_RUN = docker run $(GO_RUN_FLAGS) $(GO_IMAGE)
 
 .PHONY: help setup up down restart build rebuild ps logs logs-app \
-        migrate migrate-down migrate-version seed admin-create shell psql redis-cli \
+        migrate migrate-down migrate-version seed seed-dasar admin-create shell psql redis-cli \
         test test-e2e cache-clear fmt lint generate css ikon deploy releases rollback backup deploy-check backup-db restore-db \
         clean
 
@@ -149,6 +149,10 @@ migrate-down:
 ## migrate-version: tampilkan versi migrasi yang aktif
 migrate-version:
 	@$(call compose,run --rm app migrate version)
+
+## seed-dasar: isi kategori jasa & paket promosi saja (aman diulang; untuk produksi)
+seed-dasar:
+	@$(call compose,run --rm app seed:dasar)
 
 ## seed: isi data dummy untuk pengembangan
 seed:

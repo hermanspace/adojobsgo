@@ -47,7 +47,8 @@ menjalankannya di server lewat SSH — tidak ada logika yang ditulis dua kali.
 | `make build` / `make rebuild` | Build ulang image app |
 | `make logs` / `make logs-app` | Tail log semua service / service app |
 | `make migrate` / `make migrate-down` | Migrasi ke versi terbaru / rollback satu langkah |
-| `make seed` | Isi kategori jasa dan penyedia contoh |
+| `make seed` | Isi kategori jasa dan penyedia contoh (pengembangan) |
+| `make seed-dasar` | Isi kategori jasa & paket promosi saja, tanpa data contoh (produksi, aman diulang) |
 
 Migrasi **tersemat di dalam image** (`//go:embed`), jadi `make migrate` menjalankan migrasi yang dikenal image yang sedang ada. Setelah menambah berkas migrasi, jalankan `make build` lebih dulu — kalau tidak, image lama akan melapor "sudah pada versi terbaru" dengan jujur, karena bagi dirinya memang begitu.
 | `make admin-create` | Buat admin pertama dari `ADMIN_PHONE` & `ADMIN_PASSWORD` di `.env` |
@@ -905,6 +906,7 @@ langsung. Mode SSL Cloudflare: **Full (strict)**.
 ### 5. Setelah hidup
 
 ```bash
+make seed-dasar ENV=prod        # kategori jasa & paket promosi (tanpa data contoh)
 make admin-create ENV=prod      # admin pertama dari ADMIN_PHONE/ADMIN_PASSWORD di .env server
 make logs-app ENV=prod
 make releases                   # daftar tag image di server

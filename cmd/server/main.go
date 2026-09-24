@@ -60,7 +60,12 @@ func main() {
 			fatal(err)
 		}
 	case "seed":
-		if err := runSeed(cfg); err != nil {
+		if err := runSeed(cfg, seed.Run); err != nil {
+			fatal(err)
+		}
+	case "seed:dasar":
+		// Produksi: kategori & paket promosi saja, tanpa data contoh.
+		if err := runSeed(cfg, seed.Dasar); err != nil {
 			fatal(err)
 		}
 	case "admin:create":
@@ -124,7 +129,7 @@ func runMigrate(cfg *config.Config, args []string) error {
 	}
 }
 
-func runSeed(cfg *config.Config) error {
+func runSeed(cfg *config.Config, jalankan func(context.Context, *repository.Repositories) error) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 
@@ -134,7 +139,7 @@ func runSeed(cfg *config.Config) error {
 	}
 	defer pool.Close()
 
-	return seed.Run(ctx, repository.New(pool))
+	return jalankan(ctx, repository.New(pool))
 }
 
 // runCreateAdmin membuat admin pertama dari variabel environment.

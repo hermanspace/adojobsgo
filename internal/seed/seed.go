@@ -61,7 +61,25 @@ var daftarKategori = []kategoriBenih{
 	}},
 }
 
-// Run menjalankan seluruh proses seeding.
+// Dasar mengisi data yang dibutuhkan setiap instalasi — kategori jasa dan
+// paket promosi — tanpa satu pun data contoh. Ini yang dijalankan di
+// produksi; Upsert membuatnya aman diulang.
+func Dasar(ctx context.Context, repos *repository.Repositories) error {
+	if err := periksaSlugKategori(); err != nil {
+		return err
+	}
+	if err := seedKategori(ctx, repos); err != nil {
+		return fmt.Errorf("seed kategori: %w", err)
+	}
+	if err := seedPaket(ctx, repos); err != nil {
+		return fmt.Errorf("seed paket promosi: %w", err)
+	}
+	slog.Info("seed dasar selesai")
+	return nil
+}
+
+// Run menjalankan seluruh proses seeding untuk pengembangan: data dasar
+// ditambah penyedia dan jasa contoh.
 func Run(ctx context.Context, repos *repository.Repositories) error {
 	if err := periksaSlugKategori(); err != nil {
 		return err
