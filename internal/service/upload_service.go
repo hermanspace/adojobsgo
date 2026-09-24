@@ -1,6 +1,7 @@
 package service
 
 import (
+	"bytes"
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
@@ -76,7 +77,20 @@ func (s *UploadService) SaveImage(fh *multipart.FileHeader, profil ProfilGambar)
 	if _, err := src.Seek(0, io.SeekStart); err != nil {
 		return nil, Internal(err)
 	}
+	return s.simpanDari(src, profil)
+}
 
+// SaveImageBytes menyimpan gambar yang sudah ada di memori lewat pipeline
+// yang sama dengan unggahan pengguna (perkecil, sandikan ulang, thumbnail).
+// Dipakai seeder demo; tidak pernah dipanggil dari handler.
+func (s *UploadService) SaveImageBytes(data []byte, profil ProfilGambar) (*GambarTersimpan, error) {
+	if !allowedImageTypes[http.DetectContentType(data)] {
+		return nil, InvalidMsg("Format gambar harus JPG, PNG, atau WEBP.")
+	}
+	return s.simpanDari(bytes.NewReader(data), profil)
+}
+
+func (s *UploadService) simpanDari(src io.ReadSeeker, profil ProfilGambar) (*GambarTersimpan, error) {
 	hasil, err := prosesGambar(src, profil)
 	if err != nil {
 		return nil, err

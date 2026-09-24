@@ -49,6 +49,7 @@ menjalankannya di server lewat SSH — tidak ada logika yang ditulis dua kali.
 | `make migrate` / `make migrate-down` | Migrasi ke versi terbaru / rollback satu langkah |
 | `make seed` | Isi kategori jasa dan penyedia contoh (pengembangan) |
 | `make seed-dasar` | Isi kategori jasa & paket promosi saja, tanpa data contoh (produksi, aman diulang) |
+| `make seed-demo` | Konten peragaan lengkap: 6 penyedia berfoto & portofolio, 4 pencari, pesanan + obrolan + ulasan, iklan/sorotan/penyedia pilihan tayang, 1 pengajuan menunggu; kata sandi dari `DEMO_PASSWORD` atau acak di log (aman diulang) |
 
 Migrasi **tersemat di dalam image** (`//go:embed`), jadi `make migrate` menjalankan migrasi yang dikenal image yang sedang ada. Setelah menambah berkas migrasi, jalankan `make build` lebih dulu — kalau tidak, image lama akan melapor "sudah pada versi terbaru" dengan jujur, karena bagi dirinya memang begitu.
 | `make admin-create` | Buat admin pertama dari `ADMIN_PHONE` & `ADMIN_PASSWORD` di `.env` |

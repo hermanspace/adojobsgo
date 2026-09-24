@@ -9,6 +9,7 @@
 //	server migrate version menampilkan versi migrasi aktif
 //	server seed       mengisi data awal untuk pengembangan
 //	server seed:dasar mengisi kategori & paket promosi saja (produksi)
+//	server seed:demo  mengisi konten peragaan lengkap (kata sandi dari DEMO_PASSWORD atau acak, dicetak di log)
 //	server admin:create  membuat atau menaikkan satu akun menjadi admin
 package main
 
@@ -69,6 +70,14 @@ func main() {
 		if err := runSeed(cfg, seed.Dasar); err != nil {
 			fatal(err)
 		}
+	case "seed:demo":
+		// Konten peragaan lengkap (akun, jasa berfoto, pesanan, ulasan, promosi).
+		upload := service.NewUploadService(cfg.Upload)
+		if err := runSeed(cfg, func(ctx context.Context, repos *repository.Repositories) error {
+			return seed.Demo(ctx, repos, upload)
+		}); err != nil {
+			fatal(err)
+		}
 	case "admin:create":
 		if err := runCreateAdmin(cfg); err != nil {
 			fatal(err)
@@ -78,7 +87,7 @@ func main() {
 			fatal(err)
 		}
 	default:
-		fatal(fmt.Errorf("perintah tidak dikenal: %q (pilihan: serve, migrate, seed, seed:dasar, admin:create)", args[0]))
+		fatal(fmt.Errorf("perintah tidak dikenal: %q (pilihan: serve, migrate, seed, seed:dasar, seed:demo, admin:create)", args[0]))
 	}
 }
 

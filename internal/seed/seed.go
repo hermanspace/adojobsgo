@@ -315,7 +315,12 @@ func seedProvider(ctx context.Context, repos *repository.Repositories) error {
 	if err != nil {
 		return err
 	}
+	return seedProviderDenganHash(ctx, repos, string(hash), katasandiBenih)
+}
 
+// seedProviderDenganHash menanam penyedia contoh dengan hash kata sandi yang
+// ditentukan pemanggil; label hanya untuk log.
+func seedProviderDenganHash(ctx context.Context, repos *repository.Repositories, hash string, label string) error {
 	dibuat, dilewati := 0, 0
 	for _, p := range daftarProvider {
 		// Seeder aman diulang: akun yang sudah ada dilewati.
@@ -331,7 +336,7 @@ func seedProvider(ctx context.Context, repos *repository.Repositories) error {
 		user := &model.User{
 			FullName:     p.Nama,
 			Phone:        p.Phone,
-			PasswordHash: string(hash),
+			PasswordHash: hash,
 			City:         &kota,
 			Kecamatan:    &kecamatan,
 			IsProvider:   true,
@@ -390,7 +395,7 @@ func seedProvider(ctx context.Context, repos *repository.Repositories) error {
 	}
 
 	slog.Info("provider contoh tersimpan", "dibuat", dibuat, "dilewati", dilewati,
-		"katasandi", katasandiBenih)
+		"katasandi", label)
 	return nil
 }
 

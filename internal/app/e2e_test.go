@@ -1249,6 +1249,46 @@ func TestAPIUntukAndroid(t *testing.T) {
 	}
 }
 
+// TestSeedDemo: konten peragaan lengkap terbentuk di atas seed dasar, tampil
+// di halaman publik, dan aman diulang.
+func TestSeedDemo(t *testing.T) {
+	a := siapkan(t)
+	ctx := context.Background()
+	t.Setenv("DEMO_PASSWORD", "demo-e2e-123456")
+	if err := seed.Demo(ctx, a.Repos, a.Services.Upload); err != nil {
+		t.Fatalf("seed demo: %v", err)
+	}
+	for tabel, minimal := range map[string]int{"users": 10, "service_images": 10, "portfolios": 6, "orders": 6, "reviews": 4, "messages": 10} {
+		n := a.tanya(t, "SELECT count(*)::text FROM "+tabel)
+		if v, _ := strconv.Atoi(n); v < minimal {
+			t.Errorf("%s = %s, minimal %d", tabel, n, minimal)
+		}
+	}
+	if n := a.tanya(t, `SELECT count(*)::text FROM promosi WHERE status='aktif'`); n != "5" {
+		t.Errorf("promosi aktif = %s, harusnya 5 (2 iklan, 1 sorotan, 2 penyedia pilihan)", n)
+	}
+	if n := a.tanya(t, `SELECT count(*)::text FROM provider_profiles WHERE featured_until > now()`); n != "2" {
+		t.Errorf("trigger featured dari promosi: %s penyedia, harusnya 2", n)
+	}
+	if r := a.tanya(t, `SELECT avg_rating::text FROM provider_profiles p JOIN users u ON u.id=p.user_id WHERE u.phone='628117512001'`); !strings.HasPrefix(r, "5") {
+		t.Errorf("rating penyedia pertama %s, harusnya 5", r)
+	}
+	k := a.klienBaru(t)
+	if _, isi := k.get("/"); !strings.Contains(isi, "Servis AC panggilan, garansi 30 hari") {
+		t.Error("iklan demo tidak tayang di beranda")
+	}
+	if _, isi := k.get("/penyedia/rizal-teknik-ac"); !strings.Contains(isi, "Datang tepat waktu") || !strings.Contains(isi, "/uploads/") {
+		t.Error("ulasan atau foto demo tidak tampil di halaman penyedia")
+	}
+	harusStatus(t, k.post("/masuk", url.Values{"identifier": {"628117512011"}, "password": {"demo-e2e-123456"}}, false), http.StatusSeeOther, "masuk akun demo")
+	if err := seed.Demo(ctx, a.Repos, a.Services.Upload); err != nil {
+		t.Fatalf("seed demo ulang: %v", err)
+	}
+	if n := a.tanya(t, `SELECT count(*)::text FROM users WHERE phone='628117512011'`); n != "1" {
+		t.Errorf("seed demo diulang membuat akun ganda: %s", n)
+	}
+}
+
 // TestHalamanPublik memastikan halaman tanpa login terender, bukan 500.
 func TestHalamanPublik(t *testing.T) {
 	a := siapkan(t)
