@@ -162,6 +162,10 @@ templ barisPengguna(d view.AdminUsersData, u repository.AdminUserRow) {
 // Semua tindakan bersifat reversible: tidak ada penghapusan permanen di sini.
 templ aksiPengguna(d view.AdminUsersData, u repository.AdminUserRow) {
 	<div class="flex flex-wrap items-start justify-end gap-2">
+		<a href={ templ.SafeURL(fmt.Sprintf("/admin/pengguna/%d/ubah", u.ID)) } class="btn btn-secondary btn-sm">
+			@components.Icon("ubah", "h-4 w-4")
+			Ubah data
+		</a>
 		if u.IsProvider && u.ProviderID != nil {
 			<!-- Verifikasi penyedia -->
 			<button
@@ -311,4 +315,92 @@ func jumlahPengguna(total int) string {
 		return "Tidak ada pengguna"
 	}
 	return fmt.Sprintf("%d pengguna", total)
+}
+
+// AdminUbahPengguna: form admin mengubah identitas pengguna (termasuk nomor
+// HP, yang tidak bisa diubah pengguna sendiri) dan profil penyedianya.
+templ AdminUbahPengguna(d view.AdminUbahPenggunaData) {
+	@layout.AdminBase(d.AdminBase) {
+		<a href="/admin/pengguna" class="mb-4 inline-flex items-center gap-1 text-sm font-medium" style="color: var(--text-muted)">
+			@components.Icon("panah-kiri", "h-4 w-4")
+			Kembali ke daftar pengguna
+		</a>
+		<div class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_300px]">
+			<form action={ templ.SafeURL(fmt.Sprintf("/admin/pengguna/%d/ubah", d.User.ID)) } method="post" novalidate class="surface-panel p-5">
+				<h2 class="text-base font-bold">Identitas akun</h2>
+				<p class="mb-4 mt-1 text-xs" style="color: var(--text-muted)">Nomor HP adalah kunci masuk akun; perubahan langsung berlaku untuk masuk berikutnya.</p>
+				@components.Field("full_name", "Nama lengkap", "", d.Form.Err("full_name")) {
+					<input id="full_name" name="full_name" type="text" class="input" value={ d.Form.Value("full_name") } required maxlength="120"/>
+				}
+				<div class="grid gap-4 sm:grid-cols-2">
+					@components.Field("phone", "Nomor HP", "Format 08xx atau 628xx; disimpan sebagai 62xx.", d.Form.Err("phone")) {
+						<input id="phone" name="phone" type="tel" class="input" value={ d.Form.Value("phone") } required inputmode="tel"/>
+					}
+					@components.Field("email", "Email (opsional)", "", d.Form.Err("email")) {
+						<input id="email" name="email" type="email" class="input" value={ d.Form.Value("email") }/>
+					}
+				</div>
+				<div class="grid gap-4 sm:grid-cols-2">
+					@components.Field("kecamatan", "Kecamatan", "", d.Form.Err("kecamatan")) {
+						<select id="kecamatan" name="kecamatan" class="input">
+							<option value="">Belum diisi</option>
+							for _, k := range d.Kecamatan {
+								<option value={ k } selected?={ d.Form.Selected("kecamatan", k) }>{ k }</option>
+							}
+						</select>
+					}
+					@components.Field("city", "Kota/Kabupaten", "", d.Form.Err("city")) {
+						<input id="city" name="city" type="text" class="input" value={ d.Form.Value("city") } maxlength="80"/>
+					}
+				</div>
+				if d.User.IsProvider {
+					<h2 class="mt-6 text-base font-bold">Profil penyedia</h2>
+					<p class="mb-4 mt-1 text-xs" style="color: var(--text-muted)">Lokasi, radius layanan, dan foto diubah penyedia sendiri dari akunnya.</p>
+					@components.Field("bio", "Deskripsi penyedia", "20–1000 karakter.", d.Form.Err("bio")) {
+						<textarea id="bio" name="bio" rows="4" class="input input-textarea" maxlength="1000">{ d.Form.Value("bio") }</textarea>
+					}
+					@components.Field("whatsapp_number", "Nomor WhatsApp (opsional)", "Hanya tampil bila tombol WhatsApp dinyalakan di pengaturan.", d.Form.Err("whatsapp_number")) {
+						<input id="whatsapp_number" name="whatsapp_number" type="tel" class="input" value={ d.Form.Value("whatsapp_number") } inputmode="tel"/>
+					}
+				}
+				<div class="mt-6 flex flex-wrap gap-2">
+					<button type="submit" class="btn btn-primary">Simpan perubahan</button>
+					<a href="/admin/pengguna" class="btn btn-secondary">Batal</a>
+				</div>
+			</form>
+			<aside class="surface-panel h-fit p-5 text-sm">
+				<div class="flex items-center gap-3">
+					@components.Avatar(view.Deref(d.User.AvatarURL), d.User.FullName, "h-12 w-12 text-sm")
+					<div class="min-w-0">
+						<p class="truncate font-semibold">{ d.User.FullName }</p>
+						<p class="text-xs" style="color: var(--text-muted)">ID { strconv.FormatInt(d.User.ID, 10) } · { string(d.User.Role) }</p>
+					</div>
+				</div>
+				<dl class="mt-4 space-y-2 text-xs">
+					<div class="flex justify-between gap-2"><dt style="color: var(--text-muted)">Bergabung</dt><dd>{ d.User.CreatedAt.Format("2 Jan 2006") }</dd></div>
+					if d.User.IsProvider {
+						<div class="flex justify-between gap-2"><dt style="color: var(--text-muted)">Listing</dt><dd>{ strconv.Itoa(d.User.TotalListing) }</dd></div>
+						<div class="flex justify-between gap-2"><dt style="color: var(--text-muted)">Rating</dt><dd>{ strconv.FormatFloat(d.User.AvgRating, 'f', 1, 64) } ({ strconv.Itoa(d.User.TotalReviews) })</dd></div>
+						<div class="flex justify-between gap-2"><dt style="color: var(--text-muted)">Terverifikasi</dt><dd>{ yaTidak(d.User.IsVerified) }</dd></div>
+					}
+					if d.User.SuspendedAt != nil {
+						<div class="flex justify-between gap-2"><dt style="color: var(--danger)">Ditangguhkan</dt><dd>{ d.User.SuspendedAt.Format("2 Jan 2006") }</dd></div>
+					}
+				</dl>
+				if d.Provider != nil {
+					<a href={ templ.SafeURL(view.URLPenyedia(d.Provider.Slug)) } class="mt-4 inline-flex items-center gap-1 text-sm font-semibold" style="color: var(--primary-solid)">
+						Lihat halaman publik
+						@components.Icon("panah-kanan", "h-4 w-4")
+					</a>
+				}
+			</aside>
+		</div>
+	}
+}
+
+func yaTidak(b bool) string {
+	if b {
+		return "Ya"
+	}
+	return "Tidak"
 }

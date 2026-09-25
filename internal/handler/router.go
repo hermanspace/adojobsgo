@@ -131,6 +131,8 @@ func registerAdmin(app *fiber.App, w *web.Handler, auth *middleware.Auth, batasU
 	admin.Post("/pengguna/:id<int>/tangguhkan", w.AdminTangguhkan)
 	admin.Post("/pengguna/:id<int>/aktifkan", w.AdminAktifkan)
 	admin.Post("/pengguna/:id<int>/peran", w.AdminUbahPeran)
+	admin.Get("/pengguna/:id<int>/ubah", w.AdminUbahPenggunaForm)
+	admin.Post("/pengguna/:id<int>/ubah", w.AdminUbahPengguna)
 
 	admin.Post("/penyedia/:id<int>/verifikasi", w.AdminVerifikasi)
 	admin.Post("/penyedia/:id<int>/sorot", w.AdminSorotPenyedia)

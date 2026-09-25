@@ -418,6 +418,35 @@ func TestAlurUtama(t *testing.T) {
 		t.Error("ulasan tidak tampil di halaman publik penyedia")
 	}
 
+	// --- admin mengubah data & nomor HP penyedia ---
+	idPenyedia := a.tanya(t, `SELECT id::text FROM users WHERE phone='6281311100002'`)
+	if kode, isi := admin.get("/admin/pengguna/" + idPenyedia + "/ubah"); kode != http.StatusOK || !strings.Contains(isi, `name="whatsapp_number"`) || !strings.Contains(isi, `value="6281311100002"`) {
+		t.Errorf("form ubah pengguna = %d; kolom penyedia atau nomor lama hilang", kode)
+	}
+	// nomor milik akun lain ditolak
+	if res := admin.post("/admin/pengguna/"+idPenyedia+"/ubah", url.Values{"full_name": {"Penyedia Uji"}, "phone": {"081311100001"}, "bio": {"Deskripsi yang cukup panjang untuk lolos validasi."}}, false); res.StatusCode != http.StatusUnprocessableEntity || !strings.Contains(baca(res), "sudah dipakai akun lain") {
+		t.Errorf("nomor ganda = %d, harusnya 422 dengan pesan", res.StatusCode)
+	}
+	harusStatus(t, admin.post("/admin/pengguna/"+idPenyedia+"/ubah", url.Values{
+		"full_name": {"Penyedia Uji Baru"}, "phone": {"0813-1110-0099"}, "email": {"penyedia@contoh.id"}, "kecamatan": {"Bantan"},
+		"bio": {"Deskripsi baru yang ditulis admin, cukup panjang."}, "whatsapp_number": {"081311100099"},
+	}, false), http.StatusSeeOther, "admin simpan data penyedia")
+	if got := a.tanya(t, `SELECT phone||'|'||full_name||'|'||COALESCE(kecamatan,'')||'|'||COALESCE(email,'') FROM users WHERE id=`+idPenyedia); got != "6281311100099|Penyedia Uji Baru|Bantan|penyedia@contoh.id" {
+		t.Errorf("data pengguna setelah diubah admin = %q", got)
+	}
+	if got := a.tanya(t, `SELECT whatsapp_number||'|'||COALESCE(bio,'') FROM provider_profiles WHERE user_id=`+idPenyedia); got != "6281311100099|Deskripsi baru yang ditulis admin, cukup panjang." {
+		t.Errorf("profil penyedia setelah diubah admin = %q", got)
+	}
+	// nomor baru langsung bisa dipakai masuk; nomor lama tidak
+	masukBaru := a.klienBaru(t)
+	harusStatus(t, masukBaru.post("/masuk", url.Values{"identifier": {"081311100099"}, "password": {"rahasia-e2e-123"}}, false), http.StatusSeeOther, "masuk dengan nomor baru")
+	if res := a.klienBaru(t).post("/masuk", url.Values{"identifier": {"081311100002"}, "password": {"rahasia-e2e-123"}}, false); res.StatusCode == http.StatusSeeOther {
+		t.Error("nomor lama masih bisa dipakai masuk")
+	}
+	if _, isi := seeker.get("/cari?q=uji+e2e"); !strings.Contains(isi, "Penyedia Uji Baru") {
+		t.Error("nama baru penyedia belum tampil di kartu pencarian (cache tidak dibersihkan)")
+	}
+
 	// --- menu utama (tombol melayang) mengikuti peran di sisi web ---
 	if _, isi := a.klienBaru(t).get("/"); !strings.Contains(isi, "Daftar akun baru") || strings.Contains(isi, `action="/keluar"`) {
 		t.Error("menu tamu: harus menawarkan daftar, tanpa tombol keluar")

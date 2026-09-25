@@ -86,6 +86,25 @@ func (r *UserRepository) Update(ctx context.Context, u *model.User) error {
 	return nil
 }
 
+// UpdateByAdmin memperbarui data identitas termasuk nomor HP — hanya admin
+// yang boleh mengubah nomor, karena nomor adalah kunci masuk akun.
+func (r *UserRepository) UpdateByAdmin(ctx context.Context, u *model.User) error {
+	tag, err := r.db.Exec(ctx, `
+		UPDATE users
+		   SET full_name = $2, phone = $3, email = $4, city = $5, kecamatan = $6
+		 WHERE id = $1`, u.ID, u.FullName, u.Phone, u.Email, u.City, u.Kecamatan)
+	if err != nil {
+		if isUniqueViolation(err) {
+			return ErrConflict
+		}
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
 func (r *UserRepository) UpdatePassword(ctx context.Context, userID int64, hash string) error {
 	tag, err := r.db.Exec(ctx, `UPDATE users SET password_hash = $2 WHERE id = $1`, userID, hash)
 	if err != nil {

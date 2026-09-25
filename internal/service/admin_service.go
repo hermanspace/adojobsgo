@@ -641,3 +641,115 @@ func (s *AdminService) UbahListing(ctx context.Context, serviceID int64, in List
 	invalidateSearchCache(s.cache)
 	return svc, nil
 }
+
+// AdminPenggunaInput adalah isian form admin untuk mengubah data pengguna
+// dan, bila ia penyedia, profil penyedianya.
+type AdminPenggunaInput struct {
+	FullName  string
+	Phone     string
+	Email     string
+	City      string
+	Kecamatan string
+	// Hanya dipakai bila pengguna adalah penyedia.
+	Bio            string
+	WhatsappNumber string
+}
+
+// UbahPengguna memperbarui identitas pengguna oleh admin. Aturannya sama
+// dengan pendaftaran: nomor HP dinormalisasi dan harus unik, email opsional
+// dan unik, kecamatan harus dikenal. Nomor HP yang berubah langsung
+// berlaku untuk masuk; sesi yang sedang aktif tidak diputus.
+func (s *AdminService) UbahPengguna(ctx context.Context, userID int64, in AdminPenggunaInput) (*model.User, error) {
+	user, err := s.repos.User.GetByID(ctx, userID)
+	if err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			return nil, NotFound("Pengguna tidak ditemukan.")
+		}
+		return nil, Internal(err)
+	}
+
+	errs := validator.New()
+	name := errs.Required("full_name", "Nama lengkap", in.FullName)
+	errs.Length("full_name", "Nama lengkap", name, 3, 120)
+
+	phone := validator.NormalizePhone(in.Phone)
+	switch {
+	case strings.TrimSpace(in.Phone) == "":
+		errs.Add("phone", "Nomor HP wajib diisi.")
+	case !validator.ValidPhone(phone):
+		errs.Add("phone", "Format nomor HP tidak valid. Contoh: 0812xxxxxxx.")
+	case phone != user.Phone:
+		if lain, err := s.repos.User.GetByPhone(ctx, phone); err == nil && lain.ID != user.ID {
+			errs.Add("phone", "Nomor HP sudah dipakai akun lain.")
+		}
+	}
+
+	email := strings.TrimSpace(in.Email)
+	if email != "" {
+		if !validator.ValidEmail(email) {
+			errs.Add("email", "Format email tidak valid.")
+		} else if lain, err := s.repos.User.GetByEmail(ctx, email); err == nil && lain.ID != user.ID {
+			errs.Add("email", "Email sudah dipakai akun lain.")
+		}
+	}
+
+	kecamatan := strings.TrimSpace(in.Kecamatan)
+	if kecamatan != "" {
+		if k, ok := model.CariKecamatan(kecamatan); ok {
+			kecamatan = k.Nama
+		} else {
+			errs.Add("kecamatan", "Kecamatan tidak dikenal.")
+		}
+	}
+	city := strings.TrimSpace(in.City)
+	if city == "" {
+		city = "Bengkalis"
+	}
+
+	var profil *model.ProviderProfile
+	if user.IsProvider {
+		profil, err = s.repos.Provider.GetByUserID(ctx, userID)
+		if err != nil {
+			return nil, Internal(err)
+		}
+		errs.Length("bio", "Deskripsi penyedia", in.Bio, 20, 1000)
+		if strings.TrimSpace(in.WhatsappNumber) != "" {
+			wa := validator.NormalizePhone(in.WhatsappNumber)
+			if !validator.ValidPhone(wa) {
+				errs.Add("whatsapp_number", "Format nomor WhatsApp tidak valid. Contoh: 0812xxxxxxx.")
+			}
+			in.WhatsappNumber = wa
+		} else {
+			in.WhatsappNumber = ""
+		}
+	}
+	if errs.Any() {
+		return nil, Invalid(errs)
+	}
+
+	user.FullName = name
+	user.Phone = phone
+	user.Email = strPtrOrNil(email)
+	user.City = &city
+	user.Kecamatan = strPtrOrNil(kecamatan)
+	if err := s.repos.User.UpdateByAdmin(ctx, user); err != nil {
+		if errors.Is(err, repository.ErrConflict) {
+			errs.Add("phone", "Nomor HP atau email sudah dipakai akun lain.")
+			return nil, Invalid(errs)
+		}
+		return nil, Internal(err)
+	}
+	if profil != nil {
+		profil.Bio = strPtrOrNil(strings.TrimSpace(in.Bio))
+		profil.WhatsappNumber = in.WhatsappNumber
+		if err := s.repos.Provider.Update(ctx, profil); err != nil {
+			return nil, Internal(err)
+		}
+	}
+	// Nama & kecamatan tampil di kartu jasa dan blok penyedia pilihan.
+	invalidateSearchCache(s.cache)
+	if s.cache != nil {
+		s.cache.Forget(ctx, "filter:provider-pilihan:*")
+	}
+	return user, nil
+}

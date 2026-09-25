@@ -416,3 +416,92 @@ func orDefault(v, fallback string) string {
 	}
 	return v
 }
+
+// ---------- ubah data pengguna ----------
+
+func (h *Handler) dataUbahPengguna(c *fiber.Ctx, userID int64, form view.Form) (*view.AdminUbahPenggunaData, error) {
+	user, err := h.svc.Admin.GetUser(ctx(c), userID)
+	if err != nil {
+		return nil, err
+	}
+	kecamatan, err := h.svc.Catalog.KecamatanOptions(ctx(c))
+	if err != nil {
+		return nil, err
+	}
+	d := &view.AdminUbahPenggunaData{
+		AdminBase: h.adminBase(c, "Ubah "+user.FullName, "Perbarui identitas dan nomor HP pengguna", "pengguna"),
+		User:      user,
+		Kecamatan: kecamatan,
+		Form:      form,
+	}
+	if user.IsProvider {
+		if p, err := h.svc.Provider.GetByUserID(ctx(c), userID); err == nil {
+			d.Provider = p
+		}
+	}
+	return d, nil
+}
+
+// formDariPengguna mengisi form dengan data yang tersimpan.
+func formDariPengguna(user *repository.AdminUserRow, profil *model.ProviderProfile) view.Form {
+	f := view.NewForm().
+		Set("full_name", user.FullName).
+		Set("phone", user.Phone).
+		Set("email", view.Deref(user.Email)).
+		Set("city", view.Deref(user.City)).
+		Set("kecamatan", view.Deref(user.Kecamatan))
+	if profil != nil {
+		f = f.Set("bio", view.Deref(profil.Bio)).Set("whatsapp_number", profil.WhatsappNumber)
+	}
+	return f
+}
+
+func (h *Handler) AdminUbahPenggunaForm(c *fiber.Ctx) error {
+	id, err := strconv.ParseInt(c.Params("id"), 10, 64)
+	if err != nil {
+		return h.notFound(c)
+	}
+	data, err := h.dataUbahPengguna(c, id, view.NewForm())
+	if err != nil {
+		return h.errorPage(c, err)
+	}
+	data.Form = formDariPengguna(data.User, data.Provider)
+	return h.render(c, fiber.StatusOK, pages.AdminUbahPengguna(*data))
+}
+
+func (h *Handler) AdminUbahPengguna(c *fiber.Ctx) error {
+	id, err := strconv.ParseInt(c.Params("id"), 10, 64)
+	if err != nil {
+		return h.notFound(c)
+	}
+	in := service.AdminPenggunaInput{
+		FullName:       c.FormValue("full_name"),
+		Phone:          c.FormValue("phone"),
+		Email:          c.FormValue("email"),
+		City:           c.FormValue("city"),
+		Kecamatan:      c.FormValue("kecamatan"),
+		Bio:            c.FormValue("bio"),
+		WhatsappNumber: c.FormValue("whatsapp_number"),
+	}
+	if _, err := h.svc.Admin.UbahPengguna(ctx(c), id, in); err != nil {
+		form := view.NewForm().
+			Set("full_name", in.FullName).Set("phone", in.Phone).Set("email", in.Email).
+			Set("city", in.City).Set("kecamatan", in.Kecamatan).
+			Set("bio", in.Bio).Set("whatsapp_number", in.WhatsappNumber)
+		status := fiber.StatusInternalServerError
+		if e, ok := service.AsError(err); ok {
+			status = statusFor(e.Code)
+			if e.Fields != nil {
+				form.Errors = e.Fields
+			} else {
+				form.Errors = map[string]string{"full_name": e.Message}
+			}
+		}
+		data, derr := h.dataUbahPengguna(c, id, form)
+		if derr != nil {
+			return h.errorPage(c, derr)
+		}
+		return h.render(c, status, pages.AdminUbahPengguna(*data))
+	}
+	return h.redirectWithFlash(c, "/admin/pengguna", "sukses", "Data pengguna diperbarui.")
+}

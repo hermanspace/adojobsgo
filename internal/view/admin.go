@@ -304,3 +304,12 @@ func (d AdminPromosiDetailData) Boleh(ke string) bool {
 func (d AdminPromosiDetailData) PerluKonfirmasiBayar() bool {
 	return d.Promosi.Status == model.StatusDisetujui && d.Promosi.BuktiBayarURL != nil
 }
+
+// AdminUbahPenggunaData adalah halaman admin mengubah data satu pengguna.
+type AdminUbahPenggunaData struct {
+	AdminBase
+	User      *repository.AdminUserRow
+	Provider  *model.ProviderProfile
+	Kecamatan []string
+	Form      Form
+}
