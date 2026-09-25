@@ -1313,7 +1313,7 @@ func TestSeedDemo(t *testing.T) {
 	if n := a.tanya(t, `SELECT count(*)::text FROM provider_profiles WHERE featured_until > now()`); n != "2" {
 		t.Errorf("trigger featured dari promosi: %s penyedia, harusnya 2", n)
 	}
-	if r := a.tanya(t, `SELECT avg_rating::text FROM provider_profiles p JOIN users u ON u.id=p.user_id WHERE u.phone='628117512001'`); !strings.HasPrefix(r, "5") {
+	if r := a.tanya(t, `SELECT avg_rating::text FROM provider_profiles WHERE slug='rizal-teknik-ac'`); !strings.HasPrefix(r, "5") {
 		t.Errorf("rating penyedia pertama %s, harusnya 5", r)
 	}
 	k := a.klienBaru(t)
@@ -1334,7 +1334,19 @@ func TestSeedDemo(t *testing.T) {
 	if _, isi := k.get("/"); !strings.Contains(isi, `property="og:image" content="http://localhost:3000/static/img/og-default.png"`) {
 		t.Error("beranda tanpa og:image bawaan")
 	}
-	harusStatus(t, k.post("/masuk", url.Values{"identifier": {"628117512011"}, "password": {"demo-e2e-123456"}}, false), http.StatusSeeOther, "masuk akun demo")
+	harusStatus(t, k.post("/masuk", url.Values{"identifier": {"rina-marlina@demo.adojobs.id"}, "password": {"demo-e2e-123456"}}, false), http.StatusSeeOther, "masuk akun demo lewat email")
+	// nomor demo diamankan: tidak ada nomor yang bisa dihubungi, WhatsApp kosong,
+	// dan nomor asli bebas dipakai pendaftaran sungguhan
+	if n := a.tanya(t, `SELECT count(*)::text FROM users WHERE phone ~ '^[0-9]+$' AND role <> 'admin'`); n != "0" {
+		t.Errorf("%s akun demo masih memegang nomor HP asli", n)
+	}
+	if n := a.tanya(t, `SELECT count(*)::text FROM provider_profiles WHERE whatsapp_number <> ''`); n != "0" {
+		t.Errorf("%s profil demo masih menyimpan nomor WhatsApp", n)
+	}
+	harusStatus(t, a.klienBaru(t).post("/daftar", url.Values{"full_name": {"Pemilik Nomor Asli"}, "phone": {"081175120011"}, "password": {"rahasia-e2e-123"}, "password_confirm": {"rahasia-e2e-123"}}, false), http.StatusSeeOther, "nomor bekas demo bisa dipakai mendaftar")
+	if res := a.klienBaru(t).post("/masuk", url.Values{"identifier": {"628117512011"}, "password": {"demo-e2e-123456"}}, false); res.StatusCode == http.StatusSeeOther {
+		t.Error("nomor lama akun demo masih bisa dipakai masuk")
+	}
 	if err := seed.Demo(ctx, a.Repos, a.Services.Upload); err != nil {
 		t.Fatalf("seed demo ulang: %v", err)
 	}

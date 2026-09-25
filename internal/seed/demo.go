@@ -28,11 +28,14 @@ import (
 // dibuat acak dan dicetak sekali di log. Seeder aman diulang: bila akun
 // pencari pertama sudah ada, seluruh proses dilewati.
 func Demo(ctx context.Context, repos *repository.Repositories, upload *service.UploadService) error {
-	if _, err := repos.User.GetByPhone(ctx, pencariDemo[0].Phone); err == nil {
-		slog.Info("akun & konten demo sudah ada; hanya melengkapi riwayat kunjungan bila kosong")
-		return buatKunjungan(ctx, repos)
-	} else if !errors.Is(err, repository.ErrNotFound) {
+	if sudahAda, err := demoSudahAda(ctx, repos); err != nil {
 		return err
+	} else if sudahAda {
+		slog.Info("akun & konten demo sudah ada; mengamankan nomor dan melengkapi riwayat kunjungan bila kosong")
+		if err := amankanNomorDemo(ctx, repos); err != nil {
+			return fmt.Errorf("amankan nomor demo: %w", err)
+		}
+		return buatKunjungan(ctx, repos)
 	}
 
 	sandi := os.Getenv("DEMO_PASSWORD")
@@ -71,7 +74,10 @@ func Demo(ctx context.Context, repos *repository.Repositories, upload *service.U
 	if err := buatKunjungan(ctx, repos); err != nil {
 		return fmt.Errorf("kunjungan: %w", err)
 	}
-	slog.Info("konten demo selesai", "penyedia", len(penyedia), "pencari", len(pencari), "katasandi_semua_akun_demo", sandi)
+	if err := amankanNomorDemo(ctx, repos); err != nil {
+		return fmt.Errorf("amankan nomor demo: %w", err)
+	}
+	slog.Info("konten demo selesai", "penyedia", len(penyedia), "pencari", len(pencari), "katasandi_semua_akun_demo", sandi, "masuk_dengan", "email <slug-nama>@demo.adojobs.id")
 	return nil
 }
 
@@ -388,5 +394,80 @@ func buatKunjungan(ctx context.Context, repos *repository.Repositories) error {
 		}
 	}
 	slog.Info("riwayat kunjungan demo tersimpan", "jasa", diisi, "kunjungan", total)
+	return nil
+}
+
+// DomainEmailDemo adalah domain email akun demo. Sejak nomor HP demo
+// diamankan, akun demo masuk lewat email ini.
+const DomainEmailDemo = "demo.adojobs.id"
+
+// demoSudahAda memeriksa akun pencari demo pertama lewat nomor asli maupun
+// nomor yang sudah diamankan.
+func demoSudahAda(ctx context.Context, repos *repository.Repositories) (bool, error) {
+	for _, phone := range []string{pencariDemo[0].Phone, penandaNomorDemo(pencariDemo[0].Nama)} {
+		if _, err := repos.User.GetByPhone(ctx, phone); err == nil {
+			return true, nil
+		} else if !errors.Is(err, repository.ErrNotFound) {
+			return false, err
+		}
+	}
+	return false, nil
+}
+
+// penandaNomorDemo mengganti nomor HP akun demo dengan penanda yang tidak
+// bisa dihubungi: bukan digit, jadi tidak pernah cocok dengan nomor yang
+// diketik siapa pun, tidak bisa dipanggil, dan tidak memblokir pendaftaran
+// pemilik nomor sungguhan. Kolom phone VARCHAR(20), maka dibuat ringkas.
+func penandaNomorDemo(nama string) string {
+	p := "demo-" + slug(nama)
+	if len(p) > 20 {
+		p = p[:20]
+	}
+	return p
+}
+
+// amankanNomorDemo mengganti nomor HP dan WhatsApp akun demo (yang dibuat
+// dari daftar penyedia contoh dan pencari demo) dengan penanda, serta
+// memberi email supaya akun tetap bisa dipakai masuk. Aman diulang.
+func amankanNomorDemo(ctx context.Context, repos *repository.Repositories) error {
+	type akun struct{ Nama, Phone string }
+	var daftar []akun
+	for _, p := range daftarProvider {
+		daftar = append(daftar, akun{p.Nama, p.Phone})
+	}
+	for _, p := range pencariDemo {
+		daftar = append(daftar, akun{p.Nama, p.Phone})
+	}
+	diamankan := 0
+	for _, a := range daftar {
+		user, err := repos.User.GetByPhone(ctx, a.Phone)
+		if errors.Is(err, repository.ErrNotFound) {
+			continue // sudah diamankan atau memang tidak ada
+		} else if err != nil {
+			return err
+		}
+		email := slug(a.Nama) + "@" + DomainEmailDemo
+		user.Phone = penandaNomorDemo(a.Nama)
+		if user.Email == nil || *user.Email == "" {
+			user.Email = &email
+		}
+		if err := repos.User.UpdateByAdmin(ctx, user); err != nil {
+			return err
+		}
+		if user.IsProvider {
+			profil, err := repos.Provider.GetByUserID(ctx, user.ID)
+			if err != nil {
+				return err
+			}
+			profil.WhatsappNumber = ""
+			if err := repos.Provider.Update(ctx, profil); err != nil {
+				return err
+			}
+		}
+		diamankan++
+	}
+	if diamankan > 0 {
+		slog.Info("nomor akun demo diamankan", "akun", diamankan, "masuk_dengan", "email <slug-nama>@"+DomainEmailDemo)
+	}
 	return nil
 }
