@@ -1350,7 +1350,7 @@ func TestSeedDemo(t *testing.T) {
 	if err := seed.Demo(ctx, a.Repos, a.Services.Upload); err != nil {
 		t.Fatalf("seed demo ulang: %v", err)
 	}
-	if n := a.tanya(t, `SELECT count(*)::text FROM users WHERE phone='628117512011'`); n != "1" {
+	if n := a.tanya(t, `SELECT count(*)::text FROM users WHERE email='rina-marlina@demo.adojobs.id'`); n != "1" {
 		t.Errorf("seed demo diulang membuat akun ganda: %s", n)
 	}
 }
